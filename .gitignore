@@ -3,5 +3,6 @@ node_modules
 dist
 /tools
 /pkg
+.cargo
 *.log
 .DS_Store

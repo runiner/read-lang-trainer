@@ -2,9 +2,9 @@
 
 ## 1. Скаффолдинг проекта
 
-- [ ] 1.1 Создать cargo workspace (`Cargo.toml`, `crates/core`, `crates/wasm`) и проверить, что `cargo test` проходит на пустом workspace
-- [ ] 1.2 Настроить `web/`: Vite + TypeScript + index.html с `lang="ru"`, проверить запуск `npm --prefix web run dev` и открытие страницы
-- [ ] 1.3 Подключить wasm-pack сборку (`./tools/wasm-pack build crates/wasm -t web` → `web/pkg`) и проверить, что Vite импортирует pkg без ошибок (пустая экспорт-функция вызывается из TS)
+- [x] 1.1 Создать cargo workspace (`Cargo.toml`, `crates/core`, `crates/wasm`) и проверить, что `cargo test` проходит на пустом workspace
+- [x] 1.2 Настроить `web/`: Vite + TypeScript + index.html с `lang="ru"`, проверить запуск `npm --prefix web run dev` и открытие страницы
+- [x] 1.3 Подключить wasm-pack сборку (`./tools/wasm-pack build crates/wasm -t web` → `web/pkg`) и проверить, что Vite импортирует pkg без ошибок (пустая экспорт-функция вызывается из TS)
 
 ## 2. Контент и модель (crates/core)
 
