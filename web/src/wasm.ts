@@ -32,7 +32,10 @@ export function startSession(level: LevelId, size: number, seed: number): Sessio
 }
 
 export class SessionHandle {
-  constructor(private raw: WasmSession) {}
+  private raw: WasmSession;
+  constructor(raw: WasmSession) {
+    this.raw = raw;
+  }
 
   current(): ExerciseView | null {
     const json = this.raw.current_json();
