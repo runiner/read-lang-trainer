@@ -1,7 +1,24 @@
 :root {
-  font-family: system-ui, sans-serif;
+  --ui-font: system-ui, sans-serif;
+  font-family: var(--ui-font);
   color-scheme: light;
 }
+
+/* Выбор шрифта из настроек (см. preferences.ts) */
+html[data-font="serif"] {
+  --ui-font: Georgia, 'Times New Roman', serif;
+}
+
+html[data-font="round"] {
+  --ui-font: 'Trebuchet MS', Verdana, sans-serif;
+}
+
+/* Прописные: только элементы с классом .text (упражнение и предпросмотр) */
+.case-upper,
+.case-upper .text {
+  text-transform: uppercase;
+}
+
 
 * {
   box-sizing: border-box;
@@ -81,4 +98,9 @@ button.primary {
 .hint,
 .warn {
   color: #b3261e;
+}
+
+.preview {
+  font-size: 2rem;
+  margin: 0;
 }

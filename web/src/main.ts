@@ -1,9 +1,18 @@
 import './style.css';
 import { initWasm, startSession, type LevelId, type SessionHandle } from './wasm.js';
 import { createHistoryStore, tryLocalStorage } from './history.js';
+import { createPreferencesStore, FONTS, type Preferences } from './preferences.js';
 
 const app = document.querySelector<HTMLElement>('#app')!;
-const store = createHistoryStore(tryLocalStorage());
+const storage = tryLocalStorage();
+const store = createHistoryStore(storage);
+const prefsStore = createPreferencesStore(storage);
+let prefs: Preferences = prefsStore.load();
+
+/** Применить предпочтения к документу: шрифт на <html>, регистр — классом на область текста. */
+function applyPrefs() {
+  document.documentElement.dataset.font = prefs.fontId;
+}
 
 const LEVEL_OPTIONS: [LevelId, string][] = [
   ['vowels', 'гласные'],
@@ -23,9 +32,18 @@ function fmtDuration(ms: number): string {
 
 function renderSettings() {
   const history = store.list();
+  applyPrefs();
   app.innerHTML = `
     <section class="screen settings">
       <h1>Тренажёр чтения</h1>
+      <details id="methodology"${prefs.methodologySeen ? '' : ' open'}>
+        <summary>Методика</summary>
+        <div class="methodology">
+          <p>Программа показывает по одному тексту — от гласных до фраз. Ребёнок читает вслух; приложение не проверяет произношение.</p>
+          <p><b>Ваша роль:</b> слушать чтение и подтверждать переход — пробелом, кнопкой «Далее» или тапом по экрану, когда прочитано.</p>
+          <p><b>Уровень:</b> выбирайте самый простой, на котором ребёнок читает уверенно, и повышайте постепенно.</p>
+        </div>
+      </details>
       <label for="size">Упражнений в сессии (5–50)</label>
       <input id="size" type="number" min="5" max="50" step="1" value="10" />
       <p class="hint" id="size-hint" hidden>Допустимо целое число от 5 до 50.</p>
@@ -33,6 +51,16 @@ function renderSettings() {
       <select id="level">
         ${LEVEL_OPTIONS.map(([id, t]) => `<option value="${id}"${id === 'simple-syllables' ? ' selected' : ''}>${t}</option>`).join('')}
       </select>
+      <label for="font">Шрифт</label>
+      <select id="font">
+        ${FONTS.map(([id, t]) => `<option value="${id}"${id === prefs.fontId ? ' selected' : ''}>${t}</option>`).join('')}
+      </select>
+      <fieldset class="case-toggle">
+        <legend>Буквы</legend>
+        <label><input type="radio" name="case" value="lower"${prefs.letterCase === 'lower' ? ' checked' : ''} /> строчные</label>
+        <label><input type="radio" name="case" value="upper"${prefs.letterCase === 'upper' ? ' checked' : ''} /> прописные</label>
+      </fieldset>
+      <p class="preview exercise-sample" id="preview"><span class="text case-${prefs.letterCase}">мама мыла раму</span></p>
       <button id="start" class="primary big">Начать</button>
       <details id="history-block">
         <summary>История (${history.length})</summary>
@@ -57,6 +85,28 @@ function renderSettings() {
     const level = app.querySelector<HTMLSelectElement>('#level')!.value as LevelId;
     startNewSession(level, size);
   });
+
+  app.querySelector<HTMLSelectElement>('#font')!.addEventListener('change', (e) => {
+    prefs.fontId = (e.target as HTMLSelectElement).value;
+    prefsStore.save(prefs);
+    applyPrefs();
+  });
+  app.querySelectorAll<HTMLInputElement>('input[name="case"]').forEach((radio) => {
+    radio.addEventListener('change', () => {
+      prefs.letterCase = radio.value as Preferences['letterCase'];
+      prefsStore.save(prefs);
+      const sample = app.querySelector('.exercise-sample')!;
+      sample.className = 'preview exercise-sample';
+      sample.querySelector('.text')!.className = `text case-${prefs.letterCase}`;
+    });
+  });
+  const methodology = app.querySelector<HTMLDetailsElement>('#methodology')!;
+  methodology.addEventListener('toggle', () => {
+    if (!methodology.open && !prefs.methodologySeen) {
+      prefs.methodologySeen = true;
+      prefsStore.save(prefs);
+    }
+  });
 }
 
 function startNewSession(level: LevelId, size: number) {
@@ -75,7 +125,7 @@ function renderExercise() {
   app.innerHTML = `
     <section class="screen exercise" id="exercise-area" tabindex="-1" aria-live="polite">
       <p class="progress">${view.position} / ${view.total}</p>
-      <p class="text">${view.text}</p>
+      <p class="text case-${prefs.letterCase}">${view.text}</p>
       <button id="next" class="primary big">Далее</button>
     </section>`;
   // Один обработчик на область: клик по кнопке всплывает сюда же — двойного перехода нет.

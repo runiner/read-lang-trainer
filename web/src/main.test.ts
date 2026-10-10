@@ -3,7 +3,6 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 beforeAll(async () => {
   const fs = await import('node:fs');
-  const { initSync } = await import('../pkg/rus_wasm.js');
   // main.js сам инициализирует wasm через fetch(URL) — в jsdom это не работает,
   // поэтому подменяем модуль pkg на sync-инициализацию.
   const path = await import('node:path');
@@ -20,7 +19,7 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-const q = <T extends HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
+const q = <T extends Element = HTMLElement>(sel: string) => document.querySelector<T>(sel) as any;
 
 describe('session flow end-to-end', () => {
   it('settings -> exercises -> stats -> history after reload', async () => {
