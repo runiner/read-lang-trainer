@@ -27,11 +27,13 @@
 - Артефакт wasm-pack: `web/pkg/` (в git не попадает).
 
 ```
-cargo test -p rus-core              # быстрая проверка логики
-wasm-pack build crates/wasm -t web  # собрать wasm для web/
-npm --prefix web run dev            # дев-сервер
-npm --prefix web run test           # ui-тесты (vitest + jsdom, если подключим)
+cargo test -p rus-core                    # быстрая проверка логики
+./tools/wasm-pack build crates/wasm -t web  # собрать wasm для web/
+npm --prefix web run dev                  # дев-сервер
+npm --prefix web run test                 # ui-тесты (vitest + jsdom, если подключим)
 ```
+
+`./tools/wasm-pack` — prebuilt бинарь (в git не попадает); после `cargo install wasm-pack` можно использовать просто `wasm-pack`.
 
 ## Что важно для этого продукта
 
