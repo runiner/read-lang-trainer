@@ -2,5 +2,6 @@
 node_modules
 dist
 /tools
+/pkg
 *.log
 .DS_Store
