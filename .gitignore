@@ -6,3 +6,5 @@ dist
 .cargo
 *.log
 .DS_Store
+
+dist
