@@ -23,6 +23,18 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
+      - name: Setup wasm-pack
+        run: |
+          curl -LfsS https://github.com/rustwasm/wasm-pack/releases/download/v0.15.0/wasm-pack-v0.15.0-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv wasm-pack-v0.15.0-x86_64-unknown-linux-musl/wasm-pack /usr/local/bin/
+          wasm-pack --version
+      - name: Build wasm package (нужен для типов web/pkg/*.d.ts в tsc)
+        run: |
+          set -e
+          wasm-pack build crates/wasm -t web
+          rm -rf web/pkg && mv crates/wasm/pkg web/pkg
+          ls web/pkg/rus_wasm.d.ts
+
       - name: Rust unit tests
         run: cargo test --workspace
 
@@ -38,12 +50,6 @@ jobs:
           npx tsc --noEmit
           npm run test
 
-      - name: Setup wasm-pack
-        run: |
-          curl -LfsS https://github.com/rustwasm/wasm-pack/releases/download/v0.15.0/wasm-pack-v0.15.0-x86_64-unknown-linux-musl.tar.gz | tar xz
-          sudo mv wasm-pack-v0.15.0-x86_64-unknown-linux-musl/wasm-pack /usr/local/bin/
-      - name: Build wasm package
-        run: wasm-pack build crates/wasm -t web --out-dir ../../web/pkg
       - name: Build site
         working-directory: web
         run: npm run build
