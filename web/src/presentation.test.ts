@@ -61,10 +61,11 @@ describe('presentation settings', () => {
     q('#size').value = '5';
     q('#level').value = 'vowels';
     q('#start').click();
-    await vi.waitFor(() => {
-      for (let i = 0; i < 5; i++) q('#exercise-area')?.click(); // последнее открывает статистику
-      expect(document.querySelector('.stats')).not.toBeNull();
-    });
+    for (let i = 0; i < 5; i++) {
+      await vi.waitFor(() => expect(q('#exercise-area')).toBeTruthy());
+      q('#exercise-area').click(); // последнее открывает статистику
+    }
+    await vi.waitFor(() => expect(document.querySelector('.stats')).toBeTruthy());
     const raw = JSON.parse(localStorage.getItem('rus-trainer.sessions')!);
     expect(raw[0].count).toBe(5);
     expect(raw[0].chars_per_min).toBeGreaterThan(0);

@@ -24,6 +24,14 @@ npm --prefix web run test           # vitest: история + интеграц�
 cd web && npx tsc --noEmit          # типы
 ```
 
+## Публикация (GitHub Pages)
+
+CI/CD: [.github/workflows/deploy.yml](.github/workflows/deploy.yml) — на push в `main` гоняет `cargo test` + `vitest`, собирает wasm-pack → Vite и публикует `web/dist` на GitHub Pages; на PR — только тесты/сборка.
+
+Разовые шаги (только в веб-интерфейсе GitHub): создать публичный репозиторий, `git remote add origin … && git push -u origin main`, в **Settings → Pages** выбрать Source: **GitHub Actions**.
+
+Локально собрать статику: `npm --prefix web run build` → `web/dist`.
+
 ## Структура
 
 - `crates/core` — чистая Rust-логика (уровни, база примеров, генерация сессий, статистика). Тестируется без браузера.
