@@ -9,15 +9,17 @@ pub enum Level {
     Syllables,
     Words,
     Phrases,
+    Text,
 }
 
 impl Level {
-    pub const ALL: [Level; 5] = [
+    pub const ALL: [Level; 6] = [
         Level::Vowels,
         Level::SimpleSyllables,
         Level::Syllables,
         Level::Words,
         Level::Phrases,
+        Level::Text,
     ];
 
     /// Русское название уровня для UI.
@@ -28,6 +30,7 @@ impl Level {
             Level::Syllables => "слоги",
             Level::Words => "слова",
             Level::Phrases => "фразы",
+            Level::Text => "текст",
         }
     }
 
@@ -38,13 +41,15 @@ impl Level {
             Level::Syllables => &super::content::SYLLABLES,
             Level::Words => &super::content::WORDS,
             Level::Phrases => &super::content::PHRASES,
+            // «текст» планируется через stories.rs, плоского списка примеров нет.
+            Level::Text => &[],
         }
     }
 }
 
 /// Один пример для чтения вслух.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Example {
-    pub text: &'static str,
+    pub text: String,
     pub level: Level,
 }

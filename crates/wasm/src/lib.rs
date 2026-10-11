@@ -1,4 +1,4 @@
-use rus_core::{Level, Session};
+use rus_core::{story_sentence_count, Level, Session, STORIES};
 use wasm_bindgen::prelude::*;
 
 /// Обёртка сессии для JS: одно упражнение = один объект.
@@ -12,29 +12,63 @@ fn level_from_str(s: &str) -> Level {
         "syllables" => Level::Syllables,
         "words" => Level::Words,
         "phrases" => Level::Phrases,
+        "text" => Level::Text,
         _ => Level::SimpleSyllables,
     }
 }
 
 #[wasm_bindgen]
-pub fn create_session(level: &str, size: u32, seed: f64) -> WasmSession { WasmSession(Session::new(level_from_str(level), size as usize, seed as u64)) }
+pub fn create_session(level: &str, size: u32, seed: f64, story_id: &str) -> WasmSession {
+    WasmSession(Session::with_story(
+        level_from_str(level),
+        size as usize,
+        seed as u64,
+        story_id,
+    ))
+}
 
-#[allow(dead_code)]
-fn _unused_create_session(level: &str, size: usize, seed: u64) -> WasmSession {
-    WasmSession(Session::new(level_from_str(level), size, seed))
+/// Список произведений уровня «текст»: JSON [{"id","title","author","maxParts"}].
+#[wasm_bindgen]
+pub fn stories_json() -> String {
+    let items: Vec<String> = STORIES
+        .iter()
+        .map(|st| {
+            format!(
+                "{{\"id\":\"{}\",\"title\":\"{}\",\"author\":\"{}\",\"maxParts\":{}}}",
+                st.id,
+                st.title,
+                st.author,
+                story_sentence_count(st.id)
+            )
+        })
+        .collect();
+    format!("[{}]", items.join(","))
 }
 
 #[wasm_bindgen]
 impl WasmSession {
-    /// JSON: {"position":i,"text":"...","total":N} или null после конца.
+    /// JSON: {"position":i,"text":"...","total":N,"story":{"title","author"}?} или null.
     pub fn current_json(&self) -> Option<String> {
         let (pos, text) = self.0.current()?;
-        Some(format!(
-            "{{\"position\":{},\"text\":\"{}\",\"total\":{}}}",
-            pos,
+        #[derive(serde::Serialize)]
+        struct Cur<'a> {
+            position: usize,
+            text: &'a str,
+            total: usize,
+            story: Option<StoryRef>,
+        }
+        #[derive(serde::Serialize)]
+        struct StoryRef {
+            title: &'static str,
+            author: &'static str,
+        }
+        let cur = Cur {
+            position: pos,
             text,
-            self.0.total()
-        ))
+            total: self.0.total(),
+            story: self.0.story_title().map(|(title, author)| StoryRef { title, author }),
+        };
+        serde_json::to_string(&cur).ok()
     }
 
     pub fn next(&mut self, elapsed_ms: u32) -> bool {

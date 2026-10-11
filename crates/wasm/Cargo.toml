@@ -10,4 +10,5 @@ crate-type = ["cdylib", "rlib"]
 rus-core = { path = "../core" }
 wasm-bindgen = "0.2"
 serde_json = "1"
+serde = { version = "1", features = ["derive"] }
 serde-wasm-bindgen = "0.6"

@@ -1,5 +1,5 @@
 import './style.css';
-import { initWasm, startSession, type LevelId, type SessionHandle } from './wasm.js';
+import { initWasm, listStories, startSession, type LevelId, type SessionHandle, type StoryInfo } from './wasm.js';
 import { createHistoryStore, tryLocalStorage } from './history.js';
 import { createPreferencesStore, FONTS, type Preferences } from './preferences.js';
 
@@ -20,10 +20,12 @@ const LEVEL_OPTIONS: [LevelId, string][] = [
   ['syllables', 'слоги'],
   ['words', 'слова'],
   ['phrases', 'фразы'],
+  ['text', 'текст'],
 ];
 
 let session: SessionHandle | null = null;
 let shownAt = 0;
+const stories: StoryInfo[] = [];
 
 function fmtDuration(ms: number): string {
   const s = Math.round(ms / 1000);
@@ -51,6 +53,11 @@ function renderSettings() {
       <select id="level">
         ${LEVEL_OPTIONS.map(([id, t]) => `<option value="${id}"${id === 'simple-syllables' ? ' selected' : ''}>${t}</option>`).join('')}
       </select>
+      <div id="story-row" hidden>
+        <label for="story">Произведение</label>
+        <select id="story"></select>
+        <p class="hint" id="story-hint" hidden></p>
+      </div>
       <label for="font">Шрифт</label>
       <select id="font">
         ${FONTS.map(([id, t]) => `<option value="${id}"${id === prefs.fontId ? ' selected' : ''}>${t}</option>`).join('')}
@@ -74,6 +81,36 @@ function renderSettings() {
         </ol>
       </details>
     </section>`;
+  const levelSel = app.querySelector<HTMLSelectElement>('#level')!;
+  const storyRow = app.querySelector<HTMLElement>('#story-row')!;
+  const storySel = app.querySelector<HTMLSelectElement>('#story')!;
+  const storyHint = app.querySelector<HTMLElement>('#story-hint')!;
+  if (stories.length === 0) {
+    stories.push(...listStories());
+    storySel.innerHTML = stories
+      .map((st) => `<option value="${st.id}">${st.title} — ${st.author}</option>`)
+      .join('');
+  }
+  function syncStoryRow() {
+    const isText = levelSel.value === 'text';
+    storyRow.toggleAttribute('hidden', !isText);
+    if (isText) updateStoryHint();
+  }
+  function updateStoryHint() {
+    const st = stories.find((x) => x.id === storySel.value);
+    const size = Number(app.querySelector<HTMLInputElement>('#size')!.value);
+    if (st && Number.isInteger(size) && size > st.maxParts) {
+      storyHint.textContent = `«${st.title}» даст максимум ${st.maxParts} упражнений — уменьшите размер или выберите другой текст.`;
+      storyHint.toggleAttribute('hidden', false);
+    } else {
+      storyHint.toggleAttribute('hidden', true);
+    }
+  }
+  levelSel.addEventListener('change', syncStoryRow);
+  storySel.addEventListener('change', updateStoryHint);
+  app.querySelector<HTMLInputElement>('#size')!.addEventListener('input', updateStoryHint);
+  syncStoryRow();
+
   app.querySelector<HTMLButtonElement>('#start')!.addEventListener('click', () => {
     const sizeInput = app.querySelector<HTMLInputElement>('#size')!;
     const size = Number(sizeInput.value);
@@ -82,8 +119,20 @@ function renderSettings() {
       sizeInput.setAttribute('aria-invalid', 'true');
       return;
     }
-    const level = app.querySelector<HTMLSelectElement>('#level')!.value as LevelId;
-    startNewSession(level, size);
+    const level = levelSel.value as LevelId;
+    if (level === 'text') {
+      if (!storySel.value) {
+        storyHint.textContent = 'Выберите произведение.';
+        storyHint.toggleAttribute('hidden', false);
+        return;
+      }
+      const st = stories.find((x) => x.id === storySel.value)!;
+      if (size > st.maxParts) {
+        updateStoryHint();
+        return;
+      }
+    }
+    startNewSession(level, size, level === 'text' ? storySel.value : '');
   });
 
   app.querySelector<HTMLSelectElement>('#font')!.addEventListener('change', (e) => {
@@ -109,9 +158,9 @@ function renderSettings() {
   });
 }
 
-function startNewSession(level: LevelId, size: number) {
+function startNewSession(level: LevelId, size: number, storyId = '') {
   const seed = Math.floor(Math.random() * 2 ** 32);
-  session = startSession(level, size, seed);
+  session = startSession(level, size, seed, storyId);
   renderExercise();
 }
 
@@ -122,8 +171,12 @@ function renderExercise() {
     return;
   }
   shownAt = performance.now();
+  const storyLine = view.story
+    ? `<p class="story-title">«${view.story.title}» · ${view.story.author} · часть ${view.position} из ${view.total}</p>`
+    : '';
   app.innerHTML = `
     <section class="screen exercise" id="exercise-area" tabindex="-1" aria-live="polite">
+      ${storyLine}
       <p class="progress">${view.position} / ${view.total}</p>
       <p class="text case-${prefs.letterCase}">${view.text}</p>
       <button id="next" class="primary big">Далее</button>

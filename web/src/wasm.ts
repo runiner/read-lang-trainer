@@ -1,11 +1,19 @@
-import init, { create_session, WasmSession } from '../pkg/rus_wasm.js';
+import init, { create_session, stories_json, WasmSession } from '../pkg/rus_wasm.js';
 
-export type LevelId = 'vowels' | 'simple-syllables' | 'syllables' | 'words' | 'phrases';
+export type LevelId = 'vowels' | 'simple-syllables' | 'syllables' | 'words' | 'phrases' | 'text';
+
+export interface StoryInfo {
+  id: string;
+  title: string;
+  author: string;
+  maxParts: number;
+}
 
 export interface ExerciseView {
   position: number;
   text: string;
   total: number;
+  story?: { title: string; author: string } | null;
 }
 
 export interface SessionRecord {
@@ -26,9 +34,14 @@ export async function initWasm(): Promise<void> {
   }
 }
 
-export function startSession(level: LevelId, size: number, seed: number): SessionHandle {
-  const raw = create_session(level, size, seed);
+export function startSession(level: LevelId, size: number, seed: number, storyId = ''): SessionHandle {
+  const raw = create_session(level, size, seed, storyId);
   return new SessionHandle(raw);
+}
+
+/** Произведения уровня «текст» с максимумом частей. */
+export function listStories(): StoryInfo[] {
+  return JSON.parse(stories_json()) as StoryInfo[];
 }
 
 export class SessionHandle {
