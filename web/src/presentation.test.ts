@@ -63,6 +63,7 @@ describe('presentation settings', () => {
     q('#start').click();
     await vi.waitFor(() => {
       for (let i = 0; i < 5; i++) q('#exercise-area')?.click(); // последнее открывает статистику
+      expect(document.querySelector('.stats')).not.toBeNull();
     });
     const raw = JSON.parse(localStorage.getItem('rus-trainer.sessions')!);
     expect(raw[0].count).toBe(5);

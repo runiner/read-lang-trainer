@@ -43,11 +43,11 @@ describe('story level', () => {
 
     // размер 50 у короткой истории → подсказка и старт блокируется
     q('#size').value = '50';
-    q('#story').value = 'martyshka-i-ochki'; // maxParts = 5
+    q('#story').value = 'martyshka-i-ochki'; // maxParts = 16 (фрагменты по всем знакам)
     q('#story').dispatchEvent(new Event('change', { bubbles: true }));
     q('#start').click();
     expect(document.querySelector('.exercise')).toBeNull();
-    expect(q('#story-hint').textContent).toContain('максимум 5');
+    expect(q('#story-hint').textContent).toContain('максимум 16');
 
     // корректный старт: части идут по порядку, заголовок с названием
     q('#size').value = '5';

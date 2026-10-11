@@ -39,10 +39,11 @@ pub fn session_plan(level: Level, size: usize, seed: u64) -> Vec<Example> {
         .collect()
 }
 
-/// Границы предложений: абзацы режем по `\n`, внутри абзаца — после `.!?…`
-/// (закрывающие » ' " ) ’ приклеиваются; прямая речь «...» сразу за терминатором
-/// или после двоеточия входит в то же предложение).
+/// Границы фрагментов: абзацы режем по `\n`, внутри абзаца — после `. , : ; ? ! …`
+/// (закрывающая кавычка/скобка `» ' " ) ’` приклеивается к фрагменту; прямая речь
+/// «...», стоящая сразу за границей, дописывается в тот же фрагмент).
 pub fn split_sentences(text: &str) -> Vec<String> {
+    const TERMS: [char; 7] = ['.', ',', ':', ';', '!', '?', '\u{2026}'];
     let mut out: Vec<String> = Vec::new();
     for para in text.split('\n') {
         let p = para.trim();
@@ -53,27 +54,42 @@ pub fn split_sentences(text: &str) -> Vec<String> {
         let mut start = 0usize;
         let mut i = 0usize;
         while i < chars.len() {
-            if matches!(chars[i], '.' | '!' | '?' | '\u{2026}') {
-                let mut j = i + 1;
-                while j < chars.len() && matches!(chars[j], '\u{00BB}' | '\'' | '"' | ')' | '\u{2019}') {
-                    j += 1;
-                }
-                // прямая речь сразу за границей («...») дописывается к предложению
-                if j < chars.len() && chars[j] == '\u{00AB}' {
-                    if let Some(close) = chars[j..].iter().position(|&c| c == '\u{00BB}') {
-                        j += close + 1;
-                    }
-                }
-                let piece: String = chars[start..j.min(chars.len())].iter().collect();
-                let piece = piece.trim();
-                if !piece.is_empty() {
-                    out.push(piece.to_string());
-                }
-                start = j;
-                i = j;
+            if chars[i].is_whitespace() {
+                i += 1;
                 continue;
             }
-            i += 1;
+            // идём до ближайшего терминатора
+            let mut term = None;
+            let mut j = i;
+            while j < chars.len() {
+                if TERMS.contains(&chars[j]) {
+                    term = Some(j);
+                    break;
+                }
+                j += 1;
+            }
+            match term {
+                Some(t) => {
+                    let mut e = t + 1;
+                    while e < chars.len() && matches!(chars[e], '\u{00BB}' | '\'' | '"' | ')' | '\u{2019}') {
+                        e += 1;
+                    }
+                    // «...» сразу за границей — продолжение этого фрагмента
+                    if e < chars.len() && chars[e] == '\u{00AB}' {
+                        if let Some(close) = chars[e..].iter().position(|&c| c == '\u{00BB}') {
+                            e += close + 1;
+                        }
+                    }
+                    let piece: String = chars[start..e.min(chars.len())].iter().collect();
+                    let piece = piece.trim();
+                    if !piece.is_empty() {
+                        out.push(piece.to_string());
+                    }
+                    start = e;
+                    i = e;
+                }
+                None => break, // хвост без терминатора — добавим ниже
+            }
         }
         if start < chars.len() {
             let tail: String = chars[start..].iter().collect();
@@ -86,49 +102,115 @@ pub fn split_sentences(text: &str) -> Vec<String> {
     out
 }
 
-/// Сколько предложений в произведении — максимум упражнений уровня Text.
+/// Фрагменты для разбиения: границы по всем знакам препинания плюс склейка
+/// микро-обрывков (<4 символов) с предыдущим. Единственный источник числа частей.
+/// Грубые границы по всем знакам препинания, без склейки.
+pub fn split_sentences_raw(text: &str) -> Vec<String> {
+    split_sentences(text)
+}
+
+/// Границы + склейка микро-обрывков (<4 символов) с предыдущим.
+pub fn story_fragments(text: &str) -> Vec<String> {
+    glue_small(split_sentences(text), 4)
+}
+
+/// Индекс end ∈ [lo..=hi], где кумулятивная длина cum[end+?] ближе всего к goal.
+/// cum[i] — длина префикса sentences[0..=i]; граница после end <=> cum[end].
+/// Граница end ∈ [lo..=hi]: префикс sentences[0..=end] ближе всего к goal.
+fn nearest_cut(cum: &[usize], lens: &[usize], goal: usize, lo: usize, hi: usize) -> usize {
+    // длина префикса до end включительно = sum(lens[..=end]) (без разделителей)
+    let pref_end = |e: usize| -> usize { lens[..=e].iter().sum() };
+    let mut best = lo;
+    let mut bd = pref_end(lo).abs_diff(goal);
+    for j in lo + 1..=hi {
+        let d = pref_end(j).abs_diff(goal);
+        if d < bd {
+            bd = d;
+            best = j;
+        }
+    }
+    let _ = cum;
+    best
+}
+
+fn sum_lens(lens: &[usize], from: usize, to: usize) -> usize {
+    lens[from..=to].iter().sum()
+}
+
+fn glue_small(items: Vec<String>, min_len: usize) -> Vec<String> {
+    let mut v = items;
+    let mut k = 1usize;
+    while k < v.len() {
+        if v[k].chars().count() < min_len {
+            let tail = v.remove(k);
+            let prev = v.remove(k - 1);
+            v.insert(k - 1, format!("{prev} {tail}"));
+        } else {
+            k += 1;
+        }
+    }
+    v
+}
+
+/// Сколько фрагментов в произведении — максимум упражнений уровня Text.
 pub fn story_sentence_count(id: &str) -> usize {
-    story_by_id(id).map(|s| split_sentences(s.text).len()).unwrap_or(0)
+    story_by_id(id).map(|s| story_fragments(s.text).len()).unwrap_or(0)
 }
 
 /// Разбить произведение ровно на `n` упорядоченных частей по границам предложений.
 /// Жадная раздача: цель части ≈ total_chars/n; последняя часть забирает остаток.
 pub fn story_parts(story: &Story, n: usize) -> Vec<String> {
-    let sentences = split_sentences(story.text);
-    assert!(!sentences.is_empty(), "пустое произведение");
-    let n = n.max(1);
+    let sentences = story_fragments(story.text);
+    let m = sentences.len();
+    let n = n.clamp(1, m);
+    if n >= m {
+        return sentences; // по одному фрагменту на часть
+    }
     let lens: Vec<usize> = sentences.iter().map(|x| x.chars().count()).collect();
-    let total: usize = lens.iter().sum();
-    let target = (total / n).max(1);
-    // Если предложений меньше n, частей физически не может быть больше — тесты и UI
-    // сверяются через story_sentence_count; здесь clamp уже сделал своё.
-    let n = n.min(sentences.len());
-    // Границы: индекс последнего предложения k-й части (равномерно по символам,
-    // всегда оставляем по одному предложению на каждую оставшуюся часть).
-    let mut cuts: Vec<usize> = Vec::with_capacity(n.saturating_sub(1));
-    let last_valid = sentences.len() - 1;
-    for k in 1..n {
-        let goal = total * k / n;
-        let prev = cuts.last().copied();
-        let min_j = prev.map(|p| p + 1).unwrap_or(0); // строго растём
-        let max_j = last_valid - (n - k); // резерв под остаток частей
-        let mut j = min_j;
-        let mut acc: usize = (0..=j.min(last_valid)).map(|x| lens[x]).sum();
-        while acc < goal && j < max_j {
-            j += 1;
-            acc += lens[j];
+    // pref[i] = длина join(sentences[0..i]) с пробелами
+    let mut pref = vec![0usize; m + 1];
+    for i in 0..m {
+        pref[i + 1] = pref[i] + lens[i] + if i == 0 { 0 } else { 1 };
+    }
+    let total = pref[m];
+    // DP: dp[k][j] = мин. сумма квадратов отклонений частей от ideal при разбивке
+    // первых j фрагментов на k частей. Идеал тот же для всех частей (равномерно).
+    let ideal = total as f64 / n as f64;
+    let mut dp = vec![vec![f64::INFINITY; m + 1]; n + 1];
+    let mut cut = vec![vec![0usize; m + 1]; n + 1];
+    dp[0][0] = 0.0;
+    for k in 1..=n {
+        for j in k..=m - (n - k) {
+            // предыдущая граница i: у части [i..j) хотя бы 1 фрагмент, и до i хватает для k-1
+            let lo = k - 1;
+            let hi = j - 1;
+            for i in lo..=hi {
+                if !dp[k - 1][i].is_finite() {
+                    continue;
+                }
+                let len = pref[j] - pref[i];
+                let dev = len as f64 - ideal;
+                let val = dp[k - 1][i] + dev * dev;
+                if val < dp[k][j] {
+                    dp[k][j] = val;
+                    cut[k][j] = i;
+                }
+            }
         }
-        cuts.push(j);
     }
+    // восстановление границ
+    let mut bounds = Vec::with_capacity(n + 1);
+    let (mut k, mut j) = (n, m);
+    bounds.push(j);
+    while k > 0 {
+        j = cut[k][j];
+        bounds.push(j);
+        k -= 1;
+    }
+    bounds.reverse();
     let mut parts: Vec<String> = Vec::with_capacity(n);
-    let mut prev_end = 0usize;
-    for &cut in &cuts {
-        let piece = sentences[prev_end..=cut].join(" ");
-        parts.push(piece);
-        prev_end = cut + 1;
-    }
-    if prev_end < sentences.len() {
-        parts.push(sentences[prev_end..].join(" "));
+    for w in bounds.windows(2) {
+        parts.push(sentences[w[0]..w[1]].join(" "));
     }
     debug_assert_eq!(parts.len(), n);
     parts
@@ -138,7 +220,7 @@ pub fn story_parts(story: &Story, n: usize) -> Vec<String> {
 /// Размер плана = min(size, число предложений) — см. спеку «частей больше, чем предложений».
 pub fn text_plan(story_id: &str, size: usize) -> Vec<Example> {
     let story = story_by_id(story_id).unwrap_or(&STORIES[0]);
-    let n = size.min(split_sentences(story.text).len()).max(1);
+    let n = size.min(story_fragments(story.text).len()).max(1);
     story_parts(story, n)
         .into_iter()
         .map(|text| Example { text, level: Level::Text })
@@ -182,7 +264,7 @@ impl Session {
         let size = size.max(1);
         let (plan, story) = if level == Level::Text {
             let story = story_by_id(story_id).unwrap_or(&STORIES[0]);
-            let n = size.min(split_sentences(story.text).len()).max(1);
+            let n = size.min(story_fragments(story.text).len()).max(1);
             (
                 story_parts(story, n)
                     .into_iter()
@@ -355,6 +437,23 @@ mod tests {
     }
 
     #[test]
+    fn boundaries_after_every_punctuation_mark() {
+        let text = "Мама мыла, а папа читал; бабушка вязала. Дед пилил: и! да?";
+        let got = split_sentences(text);
+        assert_eq!(
+            got,
+            vec![
+                "Мама мыла,",
+                "а папа читал;",
+                "бабушка вязала.",
+                "Дед пилил:",
+                "и!",
+                "да?"
+            ]
+        );
+    }
+
+    #[test]
     fn parts_reassemble_into_source() {
         for st in STORIES {
             let n = 5;
@@ -369,7 +468,7 @@ mod tests {
     #[test]
     fn parts_ordered_nonempty_for_many_sizes() {
         for st in STORIES {
-            let max = split_sentences(st.text).len();
+            let max = story_fragments(st.text).len(); // тот же источник, что и story_parts
             for n in [1usize, 5, 12, max] {
                 let parts = story_parts(st, n);
                 assert!(parts.iter().all(|p| !p.trim().is_empty()), "пустая часть при n={n}");
@@ -401,7 +500,8 @@ mod tests {
     fn session_text_caps_at_sentence_count() {
         let max = story_sentence_count("strekoza-i-muravey");
         let s = Session::with_story(Level::Text, 50, 1, "strekoza-i-muravey");
-        assert_eq!(s.total(), max, "нет упражнений сверх предложений");
+        assert_eq!(s.total(), max, "нет упражнений сверх фрагментов");
+        assert!(max > 0);
     }
 
     #[test]
