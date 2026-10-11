@@ -31,20 +31,19 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - name: Web tests (vitest)
+      - name: Web tests (vitest + types)
         working-directory: web
         run: |
           npm ci
           npx tsc --noEmit
+          npm run test
 
+      - name: Setup wasm-pack
+        run: |
+          curl -LfsS https://github.com/rustwasm/wasm-pack/releases/download/v0.15.0/wasm-pack-v0.15.0-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv wasm-pack-v0.15.0-x86_64-unknown-linux-musl/wasm-pack /usr/local/bin/
       - name: Build wasm package
-        uses: rustwasm/github-action@v1.5.0
-        with:
-          working_dir: crates/wasm
-          deploy_rsdir: false
-      # action собирает в crates/wasm/pkg — переносим туда, где ждёт Vite
-      - name: Place pkg for web build
-        run: rm -rf web/pkg && mv crates/wasm/pkg web/pkg
+        run: wasm-pack build crates/wasm -t web --out-dir ../../web/pkg
       - name: Build site
         working-directory: web
         run: npm run build
