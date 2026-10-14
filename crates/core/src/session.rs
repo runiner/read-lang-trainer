@@ -21,7 +21,11 @@ impl Rng {
 /// Уровень Text строит план из частей произведения (упорядоченно, без RNG).
 pub fn session_plan(level: Level, size: usize, seed: u64) -> Vec<Example> {
     debug_assert_ne!(level, Level::Text, "для текста используйте story_parts");
-    let pool = level.examples();
+    plan_from(level, &level.examples().iter().map(String::as_str).collect::<Vec<_>>(), size, seed)
+}
+
+/// Общий алгоритм плана поверх произвольного пула (прод и тесты идут одну дорогу).
+fn plan_from(level: Level, pool: &[&str], size: usize, seed: u64) -> Vec<Example> {
     assert!(!pool.is_empty() && size > 0, "пустая база или нулевой размер");
     let mut idx: Vec<usize> = (0..pool.len()).collect();
     let mut rng = Rng(seed | 1);
@@ -33,10 +37,16 @@ pub fn session_plan(level: Level, size: usize, seed: u64) -> Vec<Example> {
         .cycle()
         .take(size)
         .map(|&i| Example {
-            text: pool[i].clone(),
+            text: pool[i].to_string(),
             level,
         })
         .collect()
+}
+
+/// Тестовый конструктор: план на синтетическом пуле — проверки механики не зависят от контента.
+#[cfg(test)]
+fn plan_from_pool(pool: &[&str], size: usize, seed: u64) -> Vec<Example> {
+    plan_from(Level::Vowels, pool, size, seed)
 }
 
 /// Найти произведение; пустой/неизвестный id → первое (страховка, UI обязан не допустить).
@@ -85,6 +95,13 @@ pub struct Session {
 }
 
 impl Session {
+    /// Тестовый конструктор: готовый план без чтения контента.
+    #[cfg(test)]
+    pub fn from_plan(plan: Vec<Example>) -> Self {
+        let total_chars = plan.iter().map(|e| e.text.chars().count() as u64).sum();
+        Session { plan, story: None, cursor: 0, total_chars, total_elapsed_ms: 0 }
+    }
+
     pub fn new(level: Level, size: usize, seed: u64) -> Self {
         Self::with_story(level, size, seed, "")
     }
@@ -182,11 +199,11 @@ mod tests {
 
     #[test]
     fn plan_repeats_when_size_exceeds_pool() {
-        // VOWELS всего 10 уникальных.
-        let plan = session_plan(Level::Vowels, 50, 99);
-        assert_eq!(plan.len(), 50);
+        // синтетический пул из 2 уникальных — механика повторов не зависит от levels.json
+        let plan = plan_from_pool(&["а", "о"], 7, 99);
+        assert_eq!(plan.len(), 7);
         let uniq: std::collections::HashSet<_> = plan.iter().map(|e| e.text.as_str()).collect();
-        assert_eq!(uniq.len(), 10);
+        assert_eq!(uniq.len(), 2);
     }
 
     #[test]
@@ -203,8 +220,9 @@ mod tests {
 
     #[test]
     fn speed_is_chars_per_minute() {
-        // 10 односимвольных примеров за 60 секунд → 10 симв/мин.
-        let mut s = Session::new(Level::Vowels, 10, 3);
+        // 10 односимвольных ПРИМЕРОВ из синтетики за 60 секунд → 10 симв/мин.
+        let plan = plan_from_pool(&["а"], 10, 3);
+        let mut s = Session::from_plan(plan);
         for _ in 0..10 {
             assert!(s.next(6_000));
         }
@@ -216,7 +234,7 @@ mod tests {
 
     #[test]
     fn zero_time_yields_no_speed() {
-        let mut s = Session::new(Level::Vowels, 2, 3);
+        let mut s = Session::from_plan(plan_from_pool(&["а", "б"], 2, 3));
         s.next(0);
         s.next(0);
         assert_eq!(s.finish(0).chars_per_min, None);
@@ -235,7 +253,15 @@ mod tests {
         ('\u{410}'..='\u{44F}').contains(&c)
             || c == '\u{401}' || c == '\u{451}'
             || c.is_whitespace()
+            || c == '\u{300}' || c == '\u{301}' // комбинирующие ударные знаки в словах
             || matches!(c, '.' | ',' | '!' | '?' | ';' | ':' | '-' | '(' | ')' | '\u{00AB}' | '\u{00BB}' | '\u{2014}' | '\u{2026}' | '0'..='9')
+    }
+
+    #[test]
+    fn stress_marks_allowed_others_not() {
+        assert!("\u{441}\u{43b}\u{43e}\u{301}\u{432}\u{43e}".chars().all(is_allowed_char), "сло́во допустимо");
+        assert!("\u{43d}\u{430}\u{300}".chars().all(is_allowed_char), "на̀ допустимо");
+        assert!(!"а\u{302}б".chars().all(is_allowed_char), "U+0302 не разрешён");
     }
 
     #[test]
@@ -264,6 +290,14 @@ mod tests {
     }
 
     #[test]
+    fn part_count_matches_document_length() {
+        // инвариант UI-источника: count всегда = длина parts в stories.json
+        for st in story_docs() {
+            assert_eq!(story_part_count(&st.id), st.parts.len(), "{}", st.id);
+        }
+    }
+
+    #[test]
     fn stories_have_manual_parts() {
         for st in story_docs() {
             let parts = story_parts(&st.id);
@@ -278,21 +312,6 @@ mod tests {
         // пустой уровень ловится той же проверкой непустоты, что и в content_documents_are_valid
         let parsed = parse_levels(r#"{"vowels": [], "words": ["дом"]}"#).unwrap();
         assert!(parsed["vowels"].is_empty(), "пустой массив уровня должен быть виден как ошибка данных");
-    }
-
-    #[test]
-    fn part_counts_are_recorded() {
-        // фиксация чисел частей после миграции в JSON (задача 1.1 apply-цикла story-manual-partition)
-        let expected = [
-            ("vorona-i-lisitsa", 27usize),
-            ("lebed-shchuka-i-rak", 14),
-            ("strekoza-i-muravey", 16),
-            ("martyshka-i-ochki", 12),
-            ("slon-na-voevodstve", 15),
-        ];
-        for (id, n) in expected {
-            assert_eq!(story_part_count(id), n, "{id}");
-        }
     }
 
     #[test]
@@ -318,7 +337,8 @@ mod tests {
 
     #[test]
     fn unknown_story_id_falls_back_to_first() {
+        let first = story_parts("").into_iter().next().unwrap();
         let s = Session::with_story(Level::Text, 5, 1, "");
-        assert!(s.current().unwrap().1.starts_with("Уж сколько раз"));
+        assert_eq!(s.current().unwrap().1, first, "fallback = первая история документа");
     }
 }

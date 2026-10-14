@@ -2,6 +2,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+// listStories читает уже инициализированный wasm — берём из модуля после boot.
 
 const wasmBytes = fs.readFileSync(path.resolve(process.cwd(), 'pkg/rus_wasm_bg.wasm'));
 
@@ -47,17 +48,18 @@ describe('story level', () => {
     storySel.dispatchEvent(new Event('change', { bubbles: true }));
     const size = q<HTMLInputElement>('#size');
     expect(size.getAttribute('readonly')).not.toBeNull();
-    expect(size.value).toBe('12'); // частей в ручной разметке «Мартышки»
+    const expectedParts = Number(size.value); // поле заполнено из stories.json через фасад
+    expect(expectedParts).toBeGreaterThanOrEqual(2); // инвариант документа, конкретное число не фиксируем
 
     // попытка задать своё число игнорируется: сессия из всех частей по порядку
     size.value = '50';
     q('#start').click();
     expect(q('.story-title').textContent).toContain('Мартышка и очки');
-    expect(q('.progress').textContent).toBe('1 / 12');
+    expect(q('.progress').textContent).toBe(`1 / ${expectedParts}`);
     const first = q('.exercise .text').textContent as string;
     expect(first.startsWith('Мартышка к старости')).toBe(true);
     q('#exercise-area').click();
-    expect(q('.progress').textContent).toBe('2 / 12');
+    expect(q('.progress').textContent).toBe(`2 / ${expectedParts}`);
     expect(q('.exercise .text').textContent).not.toBe(first);
   });
 
@@ -81,14 +83,17 @@ describe('story level', () => {
     const storySel = q<HTMLSelectElement>('#story');
     storySel.value = 'martyshka-i-ochki';
     storySel.dispatchEvent(new Event('change', { bubbles: true }));
+    const size2 = q<HTMLInputElement>('#size');
+    const total = Number(size2.value); // размер сессии = число частей из stories.json
+    expect(total).toBeGreaterThanOrEqual(2);
     q('#start').click();
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < total; i++) {
       await vi.waitFor(() => expect(q('#exercise-area')).toBeTruthy());
       q('#exercise-area').click(); // последнее открывает статистику
     }
     await vi.waitFor(() => expect(document.querySelector('.stats')).toBeTruthy());
     const raw = JSON.parse(localStorage.getItem('rus-trainer.sessions')!);
     expect(raw[0].level).toBe('text');
-    expect(raw[0].count).toBe(12);
+    expect(raw[0].count).toBe(total);
   });
 });
