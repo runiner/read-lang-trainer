@@ -24,6 +24,15 @@ npm --prefix web run test           # vitest: история + интеграц�
 cd web && npx tsc --noEmit          # типы
 ```
 
+## Как добавить упражнение
+
+Контент — в JSON-документах, Rust-код при этом менять не нужно:
+
+- `content/levels.json` — короткие уровни, ключи `vowels`, `simple-syllables`, `syllables`, `words`, `phrases`; значение — массив строк для чтения вслух. Добавить слово = дописать строку: `"vowels": ["а", "о", ...]`.
+- `content/stories.json` — уровень «текст»: массив произведений `{"id", "title", "author", "parts": [...]}`; каждый элемент `parts` — одно упражнение (часть истории), читаются по порядку.
+
+После правки: `cargo test -p rus-core` (проверит схему и содержимое: непустые уровни, уникальные id, ≥2 частей у произведения, только кириллица с разрешённой пунктуацией; битый JSON даст явную ошибку), затем пересборка wasm и перезапуск dev-сервера/деплоя.
+
 ## Публикация (GitHub Pages)
 
 CI/CD: [.github/workflows/deploy.yml](.github/workflows/deploy.yml) — на push в `main` гоняет `cargo test` + `vitest`, собирает wasm-pack → Vite и публикует `web/dist` на GitHub Pages; на PR — только тесты/сборка.
