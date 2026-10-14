@@ -1,4 +1,4 @@
-use rus_core::{story_part_count, Level, Session, STORIES};
+use rus_core::{story_docs, story_part_count, Level, Session};
 use wasm_bindgen::prelude::*;
 
 /// Обёртка сессии для JS: одно упражнение = один объект.
@@ -30,7 +30,7 @@ pub fn create_session(level: &str, size: u32, seed: f64, story_id: &str) -> Wasm
 /// Список произведений уровня «текст»: JSON [{"id","title","author","parts"}].
 #[wasm_bindgen]
 pub fn stories_json() -> String {
-    let items: Vec<String> = STORIES
+    let items: Vec<String> = story_docs()
         .iter()
         .map(|st| {
             format!(
@@ -38,7 +38,7 @@ pub fn stories_json() -> String {
                 st.id,
                 st.title,
                 st.author,
-                story_part_count(st.id)
+                story_part_count(&st.id)
             )
         })
         .collect();

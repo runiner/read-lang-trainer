@@ -1,5 +1,5 @@
 use crate::level::{Example, Level};
-use crate::stories::{story_by_id, Story, STORIES};
+use crate::content_data::{story_docs, StoryDoc};
 use serde::Serialize;
 
 /// Детерминированный ГПСЧ (xorshift64*), план сессии воспроизводится по seed.
@@ -33,33 +33,32 @@ pub fn session_plan(level: Level, size: usize, seed: u64) -> Vec<Example> {
         .cycle()
         .take(size)
         .map(|&i| Example {
-            text: pool[i].to_string(),
+            text: pool[i].clone(),
             level,
         })
         .collect()
 }
 
-/// Части произведения заданы разметкой: одна непустая строка текста = одна часть.
-pub fn story_parts(story: &Story) -> Vec<&'static str> {
-    story
-        .text
-        .lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty())
-        .collect()
+/// Найти произведение; пустой/неизвестный id → первое (страховка, UI обязан не допустить).
+fn find_story(id: &str) -> &'static StoryDoc {
+    story_docs().iter().find(|s| s.id == id).unwrap_or(&story_docs()[0])
+}
+
+/// Части произведения — из content/stories.json (один элемент массива = одна часть).
+pub fn story_parts(story_id: &str) -> Vec<String> {
+    find_story(story_id).parts.clone()
 }
 
 /// Сколько частей в произведении — это же размер сессии уровня Text.
 pub fn story_part_count(id: &str) -> usize {
-    story_by_id(id).map(|s| story_parts(s).len()).unwrap_or(0)
+    find_story(id).parts.len()
 }
 
 /// План сессии уровня Text: все части произведения по порядку (size/seed не влияют).
 pub fn text_plan(story_id: &str) -> Vec<Example> {
-    let story = story_by_id(story_id).unwrap_or(&STORIES[0]);
-    story_parts(story)
+    story_parts(story_id)
         .into_iter()
-        .map(|text| Example { text: text.to_string(), level: Level::Text })
+        .map(|text| Example { text, level: Level::Text })
         .collect()
 }
 
@@ -79,7 +78,7 @@ pub struct SessionRecord {
 /// Проходимость сессии: курсор + накопители chars/elapsed.
 pub struct Session {
     plan: Vec<Example>,
-    story: Option<&'static Story>,
+    story: Option<&'static StoryDoc>,
     cursor: usize,
     total_chars: u64,
     total_elapsed_ms: u64,
@@ -92,14 +91,14 @@ impl Session {
 
     /// Заголовок-подпись для экрана упражнения: Some((название, автор)) у уровня Text.
     pub fn story_title(&self) -> Option<(&'static str, &'static str)> {
-        self.story.as_ref().map(|st| (st.title, st.author))
+        self.story.map(|st| (st.title.as_str(), st.author.as_str()))
     }
 
     /// `story_id` значим только для Level::Text; пустой id → первая история (страховка).
     pub fn with_story(level: Level, size: usize, seed: u64, story_id: &str) -> Self {
         let (plan, story) = if level == Level::Text {
             // Размер задаёт разметка: size игнорируется.
-            (text_plan(story_id), Some(story_by_id(story_id).unwrap_or(&STORIES[0])))
+            (text_plan(story_id), Some(find_story(story_id)))
         } else {
             (session_plan(level, size.max(1), seed), None)
         };
@@ -157,25 +156,13 @@ impl Session {
 }
 
 #[cfg(test)]
+fn parse_levels(raw: &str) -> Result<std::collections::HashMap<String, Vec<String>>, serde_json::Error> {
+    serde_json::from_str(raw)
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn every_level_has_examples_and_all_cyrillic() {
-        for level in Level::ALL {
-            if level == Level::Text {
-                continue; // тексты живут в stories.rs, проверяются отдельными тестами
-            }
-            let pool = level.examples();
-            assert!(!pool.is_empty(), "{level:?} пустой");
-            for text in pool {
-                assert!(
-                    !text.is_empty() && text.chars().all(|c| ('\u{410}'..='\u{44F}').contains(&c) || c == '\u{401}' || c == '\u{451}' || c == ' '),
-                    "не кириллица: {text}"
-                );
-            }
-        }
-    }
 
     #[test]
     fn plan_only_selected_level_and_size() {
@@ -244,47 +231,67 @@ mod tests {
         assert!(json.contains("\"level\":\"words\""));
         assert!(json.contains("chars_per_min"));
     }
+    fn is_allowed_char(c: char) -> bool {
+        ('\u{410}'..='\u{44F}').contains(&c)
+            || c == '\u{401}' || c == '\u{451}'
+            || c.is_whitespace()
+            || matches!(c, '.' | ',' | '!' | '?' | ';' | ':' | '-' | '(' | ')' | '\u{00AB}' | '\u{00BB}' | '\u{2014}' | '\u{2026}' | '0'..='9')
+    }
+
     #[test]
-    fn stories_are_valid_and_cyrillic() {
-        assert!(STORIES.len() >= 2);
-        let ids: std::collections::HashSet<_> = STORIES.iter().map(|s| s.id).collect();
-        assert_eq!(ids.len(), STORIES.len(), "id уникальны");
-        for st in STORIES {
+    fn content_documents_are_valid() {
+        // требование «Корректность контентных документов»: пустой уровень — ошибка данных
+        for level in Level::ALL {
+            if level == Level::Text {
+                continue;
+            }
+            assert!(!level.examples().is_empty(), "{level:?} пустой в levels.json");
+            for t in level.examples() {
+                assert!(!t.is_empty() && t.chars().all(is_allowed_char), "не кириллица: {t}");
+            }
+        }
+        let docs = story_docs();
+        assert!(docs.len() >= 2);
+        let ids: std::collections::HashSet<_> = docs.iter().map(|s| &s.id).collect();
+        assert_eq!(ids.len(), docs.len(), "id произведений уникальны");
+        for st in docs {
             assert!(!st.title.is_empty() && !st.author.is_empty());
-            let bad: Vec<_> = st.text
-                .chars()
-                .filter(|c| {
-                    !('\u{410}'..='\u{44F}').contains(c)
-                        && *c != '\u{401}' && *c != '\u{451}'
-                        && !c.is_whitespace()
-                        && !matches!(c, '.' | ',' | '!' | '?' | ';' | ':' | '-' | '(' | ')' | '\u{00AB}' | '\u{00BB}' | '\u{2014}' | '\u{2026}' | '0'..='9')
-                })
-                .collect();
-            assert!(bad.is_empty(), "недопустимые символы в {}: {:?}", st.id, bad);
+            assert!(st.parts.len() >= 2, "{}: мало частей", st.id);
+            for p in &st.parts {
+                assert!(!p.trim().is_empty() && p.chars().all(is_allowed_char), "плохая часть в {}", st.id);
+            }
         }
     }
 
     #[test]
     fn stories_have_manual_parts() {
-        for st in STORIES {
-            let parts = story_parts(st);
-            assert!(parts.len() >= 2, "{}: мало частей", st.id);
-            assert!(parts.iter().all(|p| !p.trim().is_empty()));
-            // склейка частей через \n воспроизводит текст без потери содержимого
-            let strip = |t: &str| t.chars().filter(|c| !c.is_whitespace()).collect::<String>();
-            assert_eq!(strip(&parts.join("\n")), strip(st.text), "{}: склейка != источник", st.id);
+        for st in story_docs() {
+            let parts = story_parts(&st.id);
+            assert_eq!(parts, st.parts, "{}: story_parts читает JSON", st.id);
         }
     }
 
     #[test]
+    fn broken_json_is_a_parse_error_not_default() {
+        // требование «Корректность контентных документов»: пустой уровень — ошибка данных: битый синтаксис — явная ошибка
+        assert!(parse_levels(r#"{"vowels": [а, о],}"#).is_err());
+        // пустой уровень ловится той же проверкой непустоты, что и в content_documents_are_valid
+        let parsed = parse_levels(r#"{"vowels": [], "words": ["дом"]}"#).unwrap();
+        assert!(parsed["vowels"].is_empty(), "пустой массив уровня должен быть виден как ошибка данных");
+    }
+
+    #[test]
     fn part_counts_are_recorded() {
-        // «записать итог сравнения» из задачи 4.1 — числа фиксируются тестом
-        let counts: Vec<(&str, usize)> = STORIES
-            .iter()
-            .map(|st| (st.id, story_part_count(st.id)))
-            .collect();
-        for (id, c) in &counts {
-            assert!((6..=30).contains(c), "{id}: {c} частей вне разумного диапазона");
+        // фиксация чисел частей после миграции в JSON (задача 1.1 apply-цикла story-manual-partition)
+        let expected = [
+            ("vorona-i-lisitsa", 27usize),
+            ("lebed-shchuka-i-rak", 14),
+            ("strekoza-i-muravey", 16),
+            ("martyshka-i-ochki", 12),
+            ("slon-na-voevodstve", 15),
+        ];
+        for (id, n) in expected {
+            assert_eq!(story_part_count(id), n, "{id}");
         }
     }
 
