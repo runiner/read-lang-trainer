@@ -6,7 +6,8 @@ export interface StoryInfo {
   id: string;
   title: string;
   author: string;
-  maxParts: number;
+  /** Размер сессии уровня «текст» задаёт разметка, не настройка. */
+  parts: number;
 }
 
 export interface ExerciseView {

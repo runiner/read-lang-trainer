@@ -49,6 +49,7 @@ function renderSettings() {
       <label for="size">Упражнений в сессии (5–50)</label>
       <input id="size" type="number" min="5" max="50" step="1" value="10" />
       <p class="hint" id="size-hint" hidden>Допустимо целое число от 5 до 50.</p>
+      <p class="hint" id="size-fixed-hint" hidden>Размер задаёт произведение.</p>
       <label for="level">Уровень сложности</label>
       <select id="level">
         ${LEVEL_OPTIONS.map(([id, t]) => `<option value="${id}"${id === 'simple-syllables' ? ' selected' : ''}>${t}</option>`).join('')}
@@ -58,6 +59,7 @@ function renderSettings() {
         <select id="story"></select>
         <p class="hint" id="story-hint" hidden></p>
       </div>
+
       <label for="font">Шрифт</label>
       <select id="font">
         ${FONTS.map(([id, t]) => `<option value="${id}"${id === prefs.fontId ? ' selected' : ''}>${t}</option>`).join('')}
@@ -87,29 +89,30 @@ function renderSettings() {
   const storyHint = app.querySelector<HTMLElement>('#story-hint')!;
   if (stories.length === 0) {
     stories.push(...listStories());
-    storySel.innerHTML = stories
-      .map((st) => `<option value="${st.id}">${st.title} — ${st.author}</option>`)
-      .join('');
+    storySel.innerHTML =
+      '<option value="" disabled selected hidden>— выберите —</option>' +
+      stories.map((st) => `<option value="${st.id}">${st.title} — ${st.author}</option>`).join('');
   }
-  function syncStoryRow() {
+  const sizeInput = app.querySelector<HTMLInputElement>('#size')!;
+  const fixedHint = app.querySelector<HTMLElement>('#size-fixed-hint')!;
+  function applySizeMode() {
     const isText = levelSel.value === 'text';
     storyRow.toggleAttribute('hidden', !isText);
-    if (isText) updateStoryHint();
-  }
-  function updateStoryHint() {
-    const st = stories.find((x) => x.id === storySel.value);
-    const size = Number(app.querySelector<HTMLInputElement>('#size')!.value);
-    if (st && Number.isInteger(size) && size > st.maxParts) {
-      storyHint.textContent = `«${st.title}» даст максимум ${st.maxParts} упражнений — уменьшите размер или выберите другой текст.`;
-      storyHint.toggleAttribute('hidden', false);
-    } else {
-      storyHint.toggleAttribute('hidden', true);
+    sizeInput.readOnly = isText;
+    sizeInput.tabIndex = isText ? -1 : 0;
+    sizeInput.setAttribute('aria-disabled', String(isText));
+    fixedHint.toggleAttribute('hidden', !isText);
+    if (isText) {
+      const st = stories.find((x) => x.id === storySel.value);
+      if (st) sizeInput.value = String(st.parts);
     }
   }
-  levelSel.addEventListener('change', syncStoryRow);
-  storySel.addEventListener('change', updateStoryHint);
-  app.querySelector<HTMLInputElement>('#size')!.addEventListener('input', updateStoryHint);
-  syncStoryRow();
+  levelSel.addEventListener('change', () => {
+    applySizeMode();
+    storyHint.toggleAttribute('hidden', true);
+  });
+  storySel.addEventListener('change', applySizeMode);
+  applySizeMode();
 
   app.querySelector<HTMLButtonElement>('#start')!.addEventListener('click', () => {
     const sizeInput = app.querySelector<HTMLInputElement>('#size')!;
@@ -121,18 +124,17 @@ function renderSettings() {
     }
     const level = levelSel.value as LevelId;
     if (level === 'text') {
-      if (!storySel.value) {
+      const st = stories.find((x) => x.id === storySel.value);
+      if (!st) {
         storyHint.textContent = 'Выберите произведение.';
         storyHint.toggleAttribute('hidden', false);
         return;
       }
-      const st = stories.find((x) => x.id === storySel.value)!;
-      if (size > st.maxParts) {
-        updateStoryHint();
-        return;
-      }
+      // размер игнорируется core — там сколько частей в разметке
+      startNewSession(level, st.parts, st.id);
+      return;
     }
-    startNewSession(level, size, level === 'text' ? storySel.value : '');
+    startNewSession(level, size);
   });
 
   app.querySelector<HTMLSelectElement>('#font')!.addEventListener('change', (e) => {

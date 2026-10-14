@@ -1,4 +1,4 @@
-// Уровень «текст»: выбор произведения, валидация размера, порядок частей, заголовок.
+// Уровень «текст»: выбор произведения, readonly-размер из разметки, порядок частей, заголовок.
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -33,7 +33,7 @@ describe('story level', () => {
     expect(opts).toEqual(['vowels', 'simple-syllables', 'syllables', 'words', 'phrases', 'text']);
   });
 
-  it('start without story blocked; size>maxParts blocked with hint; valid start walks parts in order', async () => {
+  it('size field becomes readonly with part count; parts walk in order under story title', async () => {
     await boot();
     const level = q<HTMLSelectElement>('#level');
     level.value = 'text';
@@ -41,40 +41,54 @@ describe('story level', () => {
     expect(q('#story-row').hasAttribute('hidden')).toBe(false);
     expect([...q('#story').options].length).toBeGreaterThanOrEqual(2);
 
-    // размер 50 у короткой истории → подсказка и старт блокируется
-    q('#size').value = '50';
-    q('#story').value = 'martyshka-i-ochki'; // maxParts = 16 (фрагменты по всем знакам)
-    q('#story').dispatchEvent(new Event('change', { bubbles: true }));
-    q('#start').click();
-    expect(document.querySelector('.exercise')).toBeNull();
-    expect(q('#story-hint').textContent).toContain('максимум 16');
+    // поле размера неактивно и равно числу частей выбранного произведения
+    const storySel = q<HTMLSelectElement>('#story');
+    storySel.value = 'martyshka-i-ochki';
+    storySel.dispatchEvent(new Event('change', { bubbles: true }));
+    const size = q<HTMLInputElement>('#size');
+    expect(size.getAttribute('readonly')).not.toBeNull();
+    expect(size.value).toBe('12'); // частей в ручной разметке «Мартышки»
 
-    // корректный старт: части идут по порядку, заголовок с названием
-    q('#size').value = '5';
-    q('#size').dispatchEvent(new Event('input', { bubbles: true }));
+    // попытка задать своё число игнорируется: сессия из всех частей по порядку
+    size.value = '50';
     q('#start').click();
     expect(q('.story-title').textContent).toContain('Мартышка и очки');
-    expect(q('.progress').textContent).toBe('1 / 5');
+    expect(q('.progress').textContent).toBe('1 / 12');
     const first = q('.exercise .text').textContent as string;
     expect(first.startsWith('Мартышка к старости')).toBe(true);
     q('#exercise-area').click();
-    expect(q('.progress').textContent).toBe('2 / 5');
+    expect(q('.progress').textContent).toBe('2 / 12');
     expect(q('.exercise .text').textContent).not.toBe(first);
   });
 
-  it('stats record keeps level text', async () => {
+  it('start without chosen story is blocked with hint', async () => {
     await boot();
     const level = q<HTMLSelectElement>('#level');
     level.value = 'text';
     level.dispatchEvent(new Event('change', { bubbles: true }));
-    q('#size').value = '5';
-    q('#story').value = 'martyshka-i-ochki';
+    const storySel = q<HTMLSelectElement>('#story');
+    storySel.value = '';
     q('#start').click();
-    await vi.waitFor(() => {
-      for (let i = 0; i < 5; i++) q('#exercise-area')?.click();
-    });
+    expect(document.querySelector('.exercise')).toBeNull();
+    expect(q('#story-hint').textContent).toContain('Выберите произведение');
+  });
+
+  it('stats record keeps level text and manual part count', async () => {
+    await boot();
+    const level = q<HTMLSelectElement>('#level');
+    level.value = 'text';
+    level.dispatchEvent(new Event('change', { bubbles: true }));
+    const storySel = q<HTMLSelectElement>('#story');
+    storySel.value = 'martyshka-i-ochki';
+    storySel.dispatchEvent(new Event('change', { bubbles: true }));
+    q('#start').click();
+    for (let i = 0; i < 12; i++) {
+      await vi.waitFor(() => expect(q('#exercise-area')).toBeTruthy());
+      q('#exercise-area').click(); // последнее открывает статистику
+    }
+    await vi.waitFor(() => expect(document.querySelector('.stats')).toBeTruthy());
     const raw = JSON.parse(localStorage.getItem('rus-trainer.sessions')!);
     expect(raw[0].level).toBe('text');
-    expect(raw[0].count).toBe(5);
+    expect(raw[0].count).toBe(12);
   });
 });
