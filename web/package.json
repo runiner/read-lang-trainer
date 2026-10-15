@@ -4,7 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "build:wasm": "cd .. && ./tools/wasm-pack build crates/wasm -t web && rm -rf web/pkg && mv crates/wasm/pkg web/pkg",
+    "dev": "npm run build:wasm && vite",
+    "pretest": "npm run build:wasm",
+    "prebuild": "npm run build:wasm",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run"
