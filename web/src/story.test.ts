@@ -75,6 +75,52 @@ describe('story level', () => {
     expect(q('#story-hint').textContent).toContain('Выберите произведение');
   });
 
+  it('second story session after returning to settings works without reload', async () => {
+    await boot();
+    const level = q<HTMLSelectElement>('#level');
+    const storySel = q<HTMLSelectElement>('#story');
+
+    // первая сессия: text → пройти все части → «В настройки»
+    level.value = 'text';
+    level.dispatchEvent(new Event('change', { bubbles: true }));
+    storySel.value = 'martyshka-i-ochki';
+    storySel.dispatchEvent(new Event('change', { bubbles: true }));
+    const total = Number(q<HTMLInputElement>('#size').value);
+    q('#start').click();
+    for (let i = 0; i < total; i++) {
+      await vi.waitFor(() => expect(q('#exercise-area')).toBeTruthy());
+      q('#exercise-area').click();
+    }
+    await vi.waitFor(() => expect(document.querySelector('.stats')).toBeTruthy());
+    q('#again').click();
+    await vi.waitFor(() => expect(document.querySelector('#story')).toBeTruthy());
+
+    // возврат в настройки: элементы заново (DOM пересоздан) — уровень снова «текст»
+    const level2 = q<HTMLSelectElement>('#level');
+    const storySel2 = q<HTMLSelectElement>('#story');
+    level2.value = 'text';
+    level2.dispatchEvent(new Event('change', { bubbles: true }));
+    const opts = [...q('#story').options].filter((o: HTMLOptionElement) => o.value !== '');
+    expect(opts.length).toBeGreaterThanOrEqual(2);
+
+    // и новая сессия стартует без перезагрузки
+    storySel2.value = 'strekoza-i-muravey';
+    storySel2.dispatchEvent(new Event('change', { bubbles: true }));
+    q('#start').click();
+    await vi.waitFor(() => expect(document.querySelector('.exercise')).toBeTruthy());
+    expect(q('.story-title').textContent).toContain('Стрекоза и Муравей');
+  });
+
+  it('legacy history record without words_per_min renders dash', async () => {
+    localStorage.setItem(
+      'rus-trainer.sessions',
+      JSON.stringify([{ date_ms: Date.now(), level: 'text', count: 5, duration_ms: 60_000, chars_per_min: 120 }]),
+    );
+    await boot();
+    expect(q('#history-block').textContent).toContain('—');
+    expect(q('#history-block').textContent).not.toContain('120');
+  });
+
   it('stats record keeps level text and manual part count', async () => {
     await boot();
     const level = q<HTMLSelectElement>('#level');

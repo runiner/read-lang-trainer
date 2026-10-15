@@ -72,6 +72,32 @@ pub fn text_plan(story_id: &str) -> Vec<Example> {
         .collect()
 }
 
+/// Число слов в тексте: слово = максимальная последовательность букв, где дефис
+/// склеивает части («по-братски» = 1), пробелы и пунктуация — разделители.
+/// Буквой считается кириллица (с ё) плюс приклеенные к ней комбинирующие ударные знаки.
+pub fn count_words(text: &str) -> usize {
+    let mut words = 0usize;
+    let mut in_word = false;
+    for c in text.chars() {
+        if is_letter(c) {
+            if !in_word {
+                words += 1;
+                in_word = true;
+            }
+        } else if c == '-' && in_word {
+            // дефис внутри слова не прерывает его; «- » после пробела уже вне слова
+            continue;
+        } else {
+            in_word = false;
+        }
+    }
+    words
+}
+
+fn is_letter(c: char) -> bool {
+    ('\u{410}'..='\u{44F}').contains(&c) || c == '\u{401}' || c == '\u{451}' || c == '\u{300}' || c == '\u{301}'
+}
+
 /// Итог завершённой сессии.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SessionRecord {
@@ -82,7 +108,8 @@ pub struct SessionRecord {
     /// Суммарное время чтения всех упражнений, мс.
     pub duration_ms: u64,
     /// Символов в минуту; None, если суммарное время нулевое.
-    pub chars_per_min: Option<u32>,
+    /// Слов в минуту; None, если суммарное время нулевое.
+    pub words_per_min: Option<u32>,
 }
 
 /// Проходимость сессии: курсор + накопители chars/elapsed.
@@ -90,7 +117,7 @@ pub struct Session {
     plan: Vec<Example>,
     story: Option<&'static StoryDoc>,
     cursor: usize,
-    total_chars: u64,
+    total_words: u64,
     total_elapsed_ms: u64,
 }
 
@@ -98,8 +125,8 @@ impl Session {
     /// Тестовый конструктор: готовый план без чтения контента.
     #[cfg(test)]
     pub fn from_plan(plan: Vec<Example>) -> Self {
-        let total_chars = plan.iter().map(|e| e.text.chars().count() as u64).sum();
-        Session { plan, story: None, cursor: 0, total_chars, total_elapsed_ms: 0 }
+        let total_words = plan.iter().map(|e| count_words(&e.text) as u64).sum();
+        Session { plan, story: None, cursor: 0, total_words, total_elapsed_ms: 0 }
     }
 
     pub fn new(level: Level, size: usize, seed: u64) -> Self {
@@ -119,12 +146,12 @@ impl Session {
         } else {
             (session_plan(level, size.max(1), seed), None)
         };
-        let total_chars = plan.iter().map(|e| e.text.chars().count() as u64).sum();
+        let total_words = plan.iter().map(|e| count_words(&e.text) as u64).sum();
         Session {
             plan,
             story,
             cursor: 0,
-            total_chars,
+            total_words,
             total_elapsed_ms: 0,
         }
     }
@@ -157,17 +184,17 @@ impl Session {
 
     /// Записать итог. `date_ms` приходит из JS (Date.now), core не знает о часах.
     pub fn finish(&self, date_ms: u64) -> SessionRecord {
-        let chars_per_min = if self.total_elapsed_ms == 0 {
+        let words_per_min = if self.total_elapsed_ms == 0 {
             None
         } else {
-            Some((self.total_chars * 60_000 / self.total_elapsed_ms) as u32)
+            Some((self.total_words * 60_000 / self.total_elapsed_ms) as u32)
         };
         SessionRecord {
             date_ms,
             level: self.plan[0].level,
             count: self.plan.len(),
             duration_ms: self.total_elapsed_ms,
-            chars_per_min,
+            words_per_min,
         }
     }
 }
@@ -219,9 +246,18 @@ mod tests {
     }
 
     #[test]
-    fn speed_is_chars_per_minute() {
-        // 10 односимвольных ПРИМЕРОВ из синтетики за 60 секунд → 10 симв/мин.
-        let plan = plan_from_pool(&["а"], 10, 3);
+    fn word_counting_rules() {
+        assert_eq!(count_words("мама мыла, — говорит, — раму"), 4);
+        assert_eq!(count_words("по-братски живите дружно"), 3);
+        assert_eq!(count_words("сло\u{301}во"), 1);
+        assert_eq!(count_words(""), 0);
+        assert_eq!(count_words("«Кто?» — спрашивает."), 2);
+    }
+
+    #[test]
+    fn speed_is_words_per_minute() {
+        // 10 примеров по одному слову из синтетики за 60 секунд → 10 слов/мин.
+        let plan = plan_from_pool(&["мама"], 10, 3);
         let mut s = Session::from_plan(plan);
         for _ in 0..10 {
             assert!(s.next(6_000));
@@ -229,7 +265,7 @@ mod tests {
         let r = s.finish(0);
         assert_eq!(r.count, 10);
         assert_eq!(r.duration_ms, 60_000);
-        assert_eq!(r.chars_per_min, Some(10));
+        assert_eq!(r.words_per_min, Some(10));
     }
 
     #[test]
@@ -237,7 +273,7 @@ mod tests {
         let mut s = Session::from_plan(plan_from_pool(&["а", "б"], 2, 3));
         s.next(0);
         s.next(0);
-        assert_eq!(s.finish(0).chars_per_min, None);
+        assert_eq!(s.finish(0).words_per_min, None);
     }
 
     #[test]
@@ -247,7 +283,7 @@ mod tests {
         s.next(500);
         let json = serde_json::to_string(&s.finish(1_700_000_000_000)).unwrap();
         assert!(json.contains("\"level\":\"words\""));
-        assert!(json.contains("chars_per_min"));
+        assert!(json.contains("words_per_min"));
     }
     fn is_allowed_char(c: char) -> bool {
         ('\u{410}'..='\u{44F}').contains(&c)

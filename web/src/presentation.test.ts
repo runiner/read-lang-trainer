@@ -68,7 +68,7 @@ describe('presentation settings', () => {
     await vi.waitFor(() => expect(document.querySelector('.stats')).toBeTruthy());
     const raw = JSON.parse(localStorage.getItem('rus-trainer.sessions')!);
     expect(raw[0].count).toBe(5);
-    expect(raw[0].chars_per_min).toBeGreaterThan(0);
+    expect(raw[0].words_per_min).toBeGreaterThan(0);
   });
 
   it('font change applies immediately via data-font', async () => {

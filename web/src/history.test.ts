@@ -13,7 +13,7 @@ class FakeStorage implements Storage {
 }
 
 const rec = (n: number): SessionRecord => ({
-  date_ms: n, level: 'words', count: 10, duration_ms: 60_000, chars_per_min: n,
+  date_ms: n, level: 'words', count: 10, duration_ms: 60_000, words_per_min: n,
 });
 
 describe('history store', () => {
@@ -22,7 +22,7 @@ describe('history store', () => {
     s.save(rec(1));
     s.save(rec(2));
     const list = s.list();
-    expect(list.map((r) => r.chars_per_min)).toEqual([2, 1]);
+    expect(list.map((r) => r.words_per_min)).toEqual([2, 1]);
   });
 
   it('caps history at 500 records', () => {
@@ -35,7 +35,7 @@ describe('history store', () => {
   it('survives reload via same storage', () => {
     const st = new FakeStorage();
     createHistoryStore(st).save(rec(7));
-    expect(createHistoryStore(st).list()[0].chars_per_min).toBe(7);
+    expect(createHistoryStore(st).list()[0].words_per_min).toBe(7);
   });
 
   it('reports failure when storage unavailable', () => {

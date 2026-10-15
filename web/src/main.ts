@@ -77,7 +77,7 @@ function renderSettings() {
           ${history
             .map(
               (r) =>
-                `<li>${new Date(r.date_ms).toLocaleDateString('ru-RU')} · ${LEVEL_OPTIONS.find(([id]) => id === r.level)?.[1] ?? r.level} · ${r.count} упр. · ${r.chars_per_min ?? '—'} симв/мин</li>`,
+                `<li>${new Date(r.date_ms).toLocaleDateString('ru-RU')} · ${LEVEL_OPTIONS.find(([id]) => id === r.level)?.[1] ?? r.level} · ${r.count} упр. · ${r.words_per_min ?? '—'} слов/мин</li>`,
             )
             .join('')}
         </ol>
@@ -87,12 +87,12 @@ function renderSettings() {
   const storyRow = app.querySelector<HTMLElement>('#story-row')!;
   const storySel = app.querySelector<HTMLSelectElement>('#story')!;
   const storyHint = app.querySelector<HTMLElement>('#story-hint')!;
-  if (stories.length === 0) {
-    stories.push(...listStories());
-    storySel.innerHTML =
-      '<option value="" disabled selected hidden>— выберите —</option>' +
-      stories.map((st) => `<option value="${st.id}">${st.title} — ${st.author}</option>`).join('');
-  }
+  // список строится при каждом рендере настроек: select пересоздаётся innerHTML'ом,
+  // разовое наполнение под if теряло опции после возврата из сессии (баг).
+  if (stories.length === 0) stories.push(...listStories());
+  storySel.innerHTML =
+    '<option value="" disabled selected hidden>— выберите —</option>' +
+    stories.map((st) => `<option value="${st.id}">${st.title} — ${st.author}</option>`).join('');
   const sizeInput = app.querySelector<HTMLInputElement>('#size')!;
   const fixedHint = app.querySelector<HTMLElement>('#size-fixed-hint')!;
   function applySizeMode() {
@@ -218,7 +218,7 @@ function renderStats() {
         <li>Уровень: ${LEVEL_OPTIONS.find(([id]) => id === record.level)?.[1] ?? record.level}</li>
         <li>Упражнений: ${record.count}</li>
         <li>Время: ${fmtDuration(record.duration_ms)}</li>
-        <li>Скорость: ${record.chars_per_min === null ? '—' : `${record.chars_per_min} символов в минуту`}</li>
+        <li>Скорость: ${record.words_per_min == null ? '—' : `${record.words_per_min} слов в минуту`}</li>
       </ul>
       ${saved ? '' : '<p class="warn">История не сохранена: хранилище недоступно.</p>'}
       <button id="again" class="primary big">В настройки</button>

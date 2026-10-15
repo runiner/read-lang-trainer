@@ -22,7 +22,8 @@ export interface SessionRecord {
   level: LevelId;
   count: number;
   duration_ms: number;
-  chars_per_min: number | null;
+  /** Отсутствует в записях старого формата (символы/мин) — показываем прочерк. */
+  words_per_min?: number | null;
 }
 
 let initialized = false;

@@ -54,13 +54,13 @@ describe('session flow end-to-end', () => {
     q('#exercise-area').click();
     q('#exercise-area').click();
     expect(document.querySelector('.stats')).not.toBeNull();
-    expect(document.body.textContent).toContain('символов в минуту');
+    expect(document.body.textContent).toContain('слов в минуту');
 
     // запись упала в localStorage со скоростью
     const raw = JSON.parse(localStorage.getItem('rus-trainer.sessions')!);
     expect(raw.length).toBe(1);
     expect(raw[0].count).toBe(5);
-    expect(raw[0].chars_per_min).toBeGreaterThan(0);
+    expect(raw[0].words_per_min).toBeGreaterThan(0);
 
     // «перезагрузка»: новый импорт main видит историю
     vi.resetModules();
