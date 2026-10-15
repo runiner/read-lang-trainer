@@ -1,4 +1,4 @@
-import init, { create_session, stories_json, WasmSession } from '../pkg/rus_wasm.js';
+import init, { content_version, create_session, stories_json, WasmSession } from '../pkg/rus_wasm.js';
 
 export type LevelId = 'vowels' | 'simple-syllables' | 'syllables' | 'words' | 'phrases' | 'text';
 
@@ -40,9 +40,14 @@ export function startSession(level: LevelId, size: number, seed: number, storyId
   return new SessionHandle(raw);
 }
 
-/** Произведения уровня «текст» с максимумом частей. */
+/** Произведения уровня «текст» с числом частей из разметки. */
 export function listStories(): StoryInfo[] {
   return JSON.parse(stories_json()) as StoryInfo[];
+}
+
+/** Версия контента внутри собранного wasm-артефакта (hex SHA-256). */
+export function contentVersion(): string {
+  return content_version();
 }
 
 export class SessionHandle {

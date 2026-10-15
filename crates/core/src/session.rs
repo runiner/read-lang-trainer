@@ -258,6 +258,14 @@ mod tests {
     }
 
     #[test]
+    fn content_version_is_stable_hex64() {
+        let v = crate::content_data::content_version();
+        assert_eq!(v.len(), 64, "hex SHA-256");
+        assert!(v.chars().all(|c| c.is_ascii_hexdigit()));
+        assert_eq!(v, crate::content_data::content_version(), "детерминированно");
+    }
+
+    #[test]
     fn stress_marks_allowed_others_not() {
         assert!("\u{441}\u{43b}\u{43e}\u{301}\u{432}\u{43e}".chars().all(is_allowed_char), "сло́во допустимо");
         assert!("\u{43d}\u{430}\u{300}".chars().all(is_allowed_char), "на̀ допустимо");

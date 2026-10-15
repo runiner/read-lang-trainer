@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "build:wasm": "cd .. && ./tools/wasm-pack build crates/wasm -t web && rm -rf web/pkg && mv crates/wasm/pkg web/pkg",
+    "build:wasm": "node wasm-build.mjs",
     "dev": "npm run build:wasm && vite",
     "pretest": "npm run build:wasm",
     "prebuild": "npm run build:wasm",

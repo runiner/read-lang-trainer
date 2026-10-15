@@ -28,6 +28,8 @@ jobs:
           curl -LfsS https://github.com/rustwasm/wasm-pack/releases/download/v0.15.0/wasm-pack-v0.15.0-x86_64-unknown-linux-musl.tar.gz | tar xz
           sudo mv wasm-pack-v0.15.0-x86_64-unknown-linux-musl/wasm-pack /usr/local/bin/
           wasm-pack --version
+      # pkg собирается здесь; npm-скрипты (pretest/prebuild → node web/wasm-build.mjs)
+      # пересобирают его сами, а freshness.test.ts сверяет pkg ↔ content/*.json.
       - name: Build wasm package (нужен и для типов tsc, и для контента)
         run: |
           set -e

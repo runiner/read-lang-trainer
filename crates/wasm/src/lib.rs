@@ -85,6 +85,12 @@ impl WasmSession {
     }
 }
 
+/// Идентификатор версии контента, запечённого в этот бинарь (hex SHA-256).
+#[wasm_bindgen]
+pub fn content_version() -> String {
+    rus_core::content_version().to_string()
+}
+
 #[wasm_bindgen]
 pub fn levels() -> Vec<String> {
     Level::ALL.iter().map(|l| l.title().to_string()).collect()

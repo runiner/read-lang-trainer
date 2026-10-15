@@ -7,6 +7,22 @@ use std::sync::LazyLock;
 
 const LEVELS_JSON: &str = include_str!("../../../content/levels.json");
 const STORIES_JSON: &str = include_str!("../../../content/stories.json");
+const LEVELS_BYTES: &[u8] = include_bytes!("../../../content/levels.json");
+const STORIES_BYTES: &[u8] = include_bytes!("../../../content/stories.json");
+
+/// Идентификатор версии контента: hex SHA-256 от байтов контентных документов
+/// в фиксированном порядке с фиксированным разделителем. Меняется только вместе с файлами.
+pub fn content_version() -> &'static str {
+    static VERSION: LazyLock<String> = LazyLock::new(|| {
+        use sha2::{Digest, Sha256};
+        let mut h = Sha256::new();
+        h.update(LEVELS_BYTES);
+        h.update(b"\n---\n");
+        h.update(STORIES_BYTES);
+        h.finalize().iter().map(|b| format!("{b:02x}")).collect()
+    });
+    &VERSION
+}
 
 #[derive(Debug, Deserialize)]
 pub struct StoryDoc {
