@@ -40,7 +40,7 @@ export function startCelebration(root: HTMLElement, opts: CelebrationOptions = {
   const puppy = document.createElement('img');
   puppy.id = 'puppy';
   puppy.alt = '';
-  puppy.src = reduced ? '/puppy/static.svg' : '/puppy/frame-1.svg';
+  puppy.src = reduced ? './puppy/static.svg' : './puppy/frame-1.svg';
   const praise = document.createElement('p');
   praise.className = 'praise';
   praise.textContent = 'Молодец!';
@@ -97,7 +97,7 @@ export function startCelebration(root: HTMLElement, opts: CelebrationOptions = {
     let frame = 1;
     frameTimer = setInterval(() => {
       frame = (frame % 3) + 1;
-      puppy.src = `/puppy/frame-${frame}.svg`;
+      puppy.src = `./puppy/frame-${frame}.svg`;
     }, FRAME_MS);
   }
 

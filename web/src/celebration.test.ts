@@ -53,7 +53,9 @@ describe('celebration overlay', () => {
     const h = startCelebration(document.body, { schedule: () => 1 });
     const o = document.getElementById('celebration')!;
     expect(o.classList.contains('static')).toBe(true);
-    expect((o.querySelector('#puppy') as HTMLImageElement).src).toContain('static.svg');
+    const src = (o.querySelector('#puppy') as HTMLImageElement).getAttribute('src')!;
+    expect(src.startsWith('./')).toBe(true); // не '/puppy/…': иначе 404 на GitHub Pages в подпути
+    expect(src).toContain('static.svg');
     h.stop();
   });
 });
