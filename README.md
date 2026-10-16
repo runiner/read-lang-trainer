@@ -14,7 +14,9 @@ npm --prefix web install
 npm --prefix web run dev    # сам пересобирает wasm; http://localhost:5173
 ```
 
-Примечание про `HOME`: бинарь wasm-pack при сборке пишет во временные каталоги внутри домашней директории; в песочнице с ограниченной записью это обходится подменой HOME. Вне песочницы запускайте просто `./tools/wasm-pack build crates/wasm -t web`.
+Скрипт `web/wasm-build.mjs` использует `./tools/wasm-pack`, а если его нет (например, в CI) — `wasm-pack` из PATH (`cargo install wasm-pack`).
+
+Примечание про `HOME`: бинарь wasm-pack при сборке пишет во временные каталоги внутри домашней директории; в песочнице с ограниченной записью это обходится подменой HOME. Вне песочницы достаточно `npm --prefix web run dev`.
 
 ## Проверки
 
