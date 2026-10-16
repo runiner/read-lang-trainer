@@ -16,9 +16,9 @@ const midiHz = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 export function playCheerMusic(totalMs = 12_000): CheerMusic {
   let ctx: AudioContext | null = null;
   let master: GainNode | null = null;
-  let timer: ReturnType<typeof setInterval> | null = null;
   try {
     ctx = new AudioContext();
+    void ctx.resume?.().catch(() => {});
     const now = ctx.currentTime;
     master = ctx.createGain();
     master.connect(ctx.destination);
@@ -29,22 +29,21 @@ export function playCheerMusic(totalMs = 12_000): CheerMusic {
     master.gain.setValueAtTime(0.22, now + totalMs / 1000 - 1.5);
     master.gain.linearRampToValueAtTime(0.0001, now + totalMs / 1000);
 
-    let step = 0;
+    // Весь паттерн планируется заранее: setInterval-такты ненадёжны (тормозят в фоновых
+    // вкладках), а при рассинхронизации с currentTime ноты просто выпадали — так и пропала музыка.
     const t0 = now + 0.05;
-    timer = setInterval(() => {
-      if (!ctx || !master) return;
+    const endAt = now + totalMs / 1000 - 1.4; // до начала fade-out
+    for (let step = 0; t0 + step * STEP < endAt; step++) {
       const at = t0 + step * STEP;
-      if (at > now + totalMs / 1000 - 1.4) return; // после начала фейда-аут молчим
       voice(ctx, master, 'square', midiHz(BASS[step % BASS.length]), at, STEP * 0.9, 0.5);
-      voice(ctx, master, 'square', midiHz(LEAD[step % LEAD.length]), at, STEP * 0.45, 0.16);
-      step += 1;
-    }, STEP * 1000 * 2);
-  } catch {
+      voice(ctx, master, 'sawtooth', midiHz(LEAD[step % LEAD.length] + 12), at, STEP * 0.45, 0.18);
+    }
+  } catch (e) {
+    console.error('cheer music: WebAudio недоступен', e);
     ctx = null;
   }
   return {
     stop() {
-      if (timer !== null) clearInterval(timer);
       try {
         master?.disconnect();
         void ctx?.close();
@@ -53,7 +52,6 @@ export function playCheerMusic(totalMs = 12_000): CheerMusic {
       }
       ctx = null;
       master = null;
-      timer = null;
     },
   };
 }
@@ -64,7 +62,7 @@ function voice(ctx: AudioContext, dest: GainNode, type: OscillatorType, freq: nu
   osc.type = type;
   osc.frequency.value = freq;
   g.gain.setValueAtTime(gain, at);
-  g.gain.exponentialRampToValueAtTime(0.001, at + dur);
+  g.gain.linearRampToValueAtTime(0.0001, at + dur);
   osc.connect(g).connect(dest);
   osc.start(at);
   osc.stop(at + dur + 0.02);
