@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <style>.dog { transform-origin: 60px 95px; }</style>
+  <g class="dog" transform="translate(-4 -6) rotate(-8)">
+    <!-- тело -->
+    <ellipse cx="60" cy="78" rx="26" ry="20" fill="#f6c445"/>
+    <!-- лапы -->
+    <rect x="40" y="90" width="9" height="18" rx="4" fill="#e8b23a"/>
+    <rect x="71" y="90" width="9" height="18" rx="4" fill="#e8b23a"/>
+    <!-- хвост -->
+    <path d="M86 72 q14 -8 10 -22" stroke="#e8b23a" stroke-width="8" fill="none" stroke-linecap="round"/>
+    <!-- голова -->
+    <circle cx="60" cy="46" r="20" fill="#f6c445"/>
+    <!-- уши -->
+    <ellipse cx="41" cy="42" rx="7" ry="13" fill="#d99f2b" transform="rotate(-18 41 42)"/>
+    <ellipse cx="79" cy="42" rx="7" ry="13" fill="#d99f2b" transform="rotate(18 79 42)"/>
+    <!-- морда -->
+    <ellipse cx="60" cy="53" rx="10" ry="7" fill="#fff3cf"/>
+    <circle cx="53" cy="43" r="2.6" fill="#3b2f23"/>
+    <circle cx="67" cy="43" r="2.6" fill="#3b2f23"/>
+    <ellipse cx="60" cy="50" rx="3.4" ry="2.6" fill="#3b2f23"/>
+    <path d="M54 58 q6 5 12 0" stroke="#3b2f23" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <!-- каска спасателя -->
+    <path d="M38 36 a22 20 0 0 1 44 0 z" fill="#d32f2f"/>
+    <rect x="36" y="34" width="48" height="6" rx="3" fill="#b71c1c"/>
+    <circle cx="60" cy="24" r="4" fill="#ffca28"/>
+  </g>
+</svg>

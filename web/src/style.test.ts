@@ -20,10 +20,19 @@ describe('design tokens layer', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('interface is static: no transitions or animations', () => {
-    expect(css).not.toMatch(/transition\s*:/);
-    expect(css).not.toMatch(/animation\s*:/);
-    expect(css).not.toContain('@keyframes');
+  it('base screens are static; motion only inside the celebration overlay', () => {
+    // вырезаем блок празднования (единственное разрешённое исключение по ui-presentation)
+    const cut = css.split('/* Празднование')[0];
+    expect(cut).not.toMatch(/transition\s*:/);
+    expect(cut).not.toMatch(/animation\s*:/);
+    expect(cut).not.toContain('@keyframes');
+    // а внутри праздника анимации привязаны только к оверлею/щенку/похвале
+    const party = css.slice(css.indexOf('/* Празднование'));
+    for (const line of party.split('\n')) {
+      if (/animation:|@keyframes/.test(line)) {
+        expect(line + ' ok').toMatch(/celebration-overlay|puppy-bounce|praise-pop|animation: none/);
+      }
+    }
   });
 
   it('keyboard focus is visibly styled', () => {

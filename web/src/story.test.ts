@@ -138,6 +138,11 @@ describe('story level', () => {
       q('#exercise-area').click(); // последнее открывает статистику
     }
     await vi.waitFor(() => expect(document.querySelector('.stats')).toBeTruthy());
+    // «Отлично!» запускает празднование и не портит статистику
+    q('#great').click();
+    expect(document.getElementById('celebration')).not.toBeNull();
+    window.dispatchEvent(new PointerEvent('pointerdown'));
+    expect(document.getElementById('celebration')).toBeNull();
     const raw = JSON.parse(localStorage.getItem('rus-trainer.sessions')!);
     expect(raw[0].level).toBe('text');
     expect(raw[0].count).toBe(total);

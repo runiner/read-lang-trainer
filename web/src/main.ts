@@ -2,6 +2,7 @@ import './style.css';
 import { initWasm, listStories, startSession, type LevelId, type SessionHandle, type StoryInfo } from './wasm.js';
 import { createHistoryStore, tryLocalStorage } from './history.js';
 import { createPreferencesStore, FONTS, type Preferences } from './preferences.js';
+import { startCelebration } from './celebration.js';
 
 const app = document.querySelector<HTMLElement>('#app')!;
 const storage = tryLocalStorage();
@@ -225,9 +226,11 @@ function renderStats() {
       </ul>
       ${saved ? '' : '<p class="warn">История не сохранена: хранилище недоступно.</p>'}
       <button id="again" class="primary big">В настройки</button>
+      <button id="great" class="big great-btn">Отлично!</button>
       </div>
     </section>`;
   app.querySelector<HTMLButtonElement>('#again')!.addEventListener('click', renderSettings);
+  app.querySelector<HTMLButtonElement>('#great')!.addEventListener('click', () => startCelebration(document.body));
 }
 
 await initWasm();
