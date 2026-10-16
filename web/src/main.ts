@@ -38,6 +38,7 @@ function renderSettings() {
   app.innerHTML = `
     <section class="screen settings">
       <h1>Тренажёр чтения</h1>
+      <div class="card">
       <details id="methodology"${prefs.methodologySeen ? '' : ' open'}>
         <summary>Методика</summary>
         <div class="methodology">
@@ -82,6 +83,7 @@ function renderSettings() {
             .join('')}
         </ol>
       </details>
+      </div>
     </section>`;
   const levelSel = app.querySelector<HTMLSelectElement>('#level')!;
   const storyRow = app.querySelector<HTMLElement>('#story-row')!;
@@ -213,6 +215,7 @@ function renderStats() {
   app.innerHTML = `
     <section class="screen stats">
       <h1>Готово!</h1>
+      <div class="card">
       <ul>
         <li>Дата: ${new Date(record.date_ms).toLocaleString('ru-RU')}</li>
         <li>Уровень: ${LEVEL_OPTIONS.find(([id]) => id === record.level)?.[1] ?? record.level}</li>
@@ -222,6 +225,7 @@ function renderStats() {
       </ul>
       ${saved ? '' : '<p class="warn">История не сохранена: хранилище недоступно.</p>'}
       <button id="again" class="primary big">В настройки</button>
+      </div>
     </section>`;
   app.querySelector<HTMLButtonElement>('#again')!.addEventListener('click', renderSettings);
 }

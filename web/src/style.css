@@ -1,5 +1,30 @@
+/* Токены дизайна (openspec: ui-presentation). Контрастные пары (текст/фон):
+   --text #232629 на --surface/--bg ≈ 14.7:1 ✓; --muted #6a737b на --surface ≈ 4.6:1 ✓;
+   белый #fff на --accent #c9531e ≈ 4.6:1 ✓ (только крупные кнопки); --warn #b3261e на --surface ≈ 6.4:1 ✓. */
 :root {
-  --ui-font: system-ui, sans-serif;
+  /* палитра */
+  --bg: #fafafb;
+  --surface: #ffffff;
+  --border: #e3e6e8;
+  --text: #232629;
+  --muted: #6a737b;
+  --accent: #c9531e;
+  --accent-hover: #a8451a;
+  --warn: #b3261e;
+
+  /* шкалы */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --radius: 6px;
+  --fs-caption: 0.875rem;
+  --fs-body: 1.25rem;
+  --fs-title: clamp(2rem, 6vw, 3rem);
+  --fs-hero: clamp(3.5rem, 18vw, 9rem);
+  --tap-target: 48px;
+
+  --ui-font: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-family: var(--ui-font);
   color-scheme: light;
 }
@@ -13,13 +38,6 @@ html[data-font="round"] {
   --ui-font: 'Trebuchet MS', Verdana, sans-serif;
 }
 
-/* Прописные: только элементы с классом .text (упражнение и предпросмотр) */
-.case-upper,
-.case-upper .text {
-  text-transform: uppercase;
-}
-
-
 * {
   box-sizing: border-box;
 }
@@ -28,6 +46,8 @@ html,
 body {
   margin: 0;
   overflow-x: hidden;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .screen {
@@ -36,41 +56,83 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  padding: 1.5rem;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-3);
   max-width: 100vw;
 }
 
 h1 {
-  font-size: clamp(2rem, 6vw, 3rem);
+  font-size: var(--fs-title);
   margin: 0;
+  text-align: center;
 }
 
-label {
-  font-size: 1.25rem;
+.card {
+  width: min(100%, 30rem);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+label,
+legend {
+  font-size: var(--fs-body);
+  color: var(--text);
 }
 
 input,
 select {
-  font-size: 1.25rem;
-  min-height: 48px;
-  padding: 0.25rem 0.75rem;
+  font-size: var(--fs-body);
+  min-height: var(--tap-target);
+  padding: var(--space-1) var(--space-2);
   width: min(100%, 14rem);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.case-toggle {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  gap: var(--space-3);
 }
 
 button.big {
-  min-height: 48px;
+  min-height: var(--tap-target);
   min-width: 120px;
   font-size: 1.5rem;
-  padding: 0.5rem 2rem;
-  border-radius: 12px;
-  border: none;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
   cursor: pointer;
 }
 
 button.primary {
-  background: #2e7d32;
+  background: var(--accent);
   color: #fff;
+}
+
+button.primary:hover {
+  background: var(--accent-hover);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input[readonly] {
+  background: var(--bg);
+  color: var(--muted);
 }
 
 .exercise {
@@ -79,25 +141,49 @@ button.primary {
 }
 
 .exercise .text {
-  font-size: clamp(3.5rem, 18vw, 9rem);
+  font-size: var(--fs-hero);
   margin: 0;
   text-align: center;
   overflow-wrap: anywhere;
+  line-height: 1.25;
 }
 
-.progress {
-  font-size: 1.5rem;
-  color: #555;
+.progress,
+.story-title {
+  font-size: var(--fs-body);
+  color: var(--muted);
 }
 
 .stats ul {
-  font-size: 1.25rem;
-  line-height: 1.8;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--fs-body);
+}
+
+.stats li {
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
 }
 
 .hint,
 .warn {
-  color: #b3261e;
+  color: var(--warn);
+  font-size: var(--fs-caption);
+  margin: 0;
+}
+
+details summary {
+  font-size: var(--fs-body);
+  cursor: pointer;
+  min-height: var(--tap-target);
+  display: flex;
+  align-items: center;
+}
+
+.methodology p {
+  margin: var(--space-2) 0;
+  line-height: 1.5;
 }
 
 .preview {
@@ -105,12 +191,8 @@ button.primary {
   margin: 0;
 }
 
-.story-title {
-  font-size: 1.1rem;
-  color: #555;
-  margin: 0;
-}
-
-.exercise .text {
-  line-height: 1.25;
+/* Прописные: только элементы с классом .text (упражнение и предпросмотр) */
+.case-upper,
+.case-upper .text {
+  text-transform: uppercase;
 }

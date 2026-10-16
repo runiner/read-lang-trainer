@@ -45,6 +45,8 @@ CI/CD: [.github/workflows/deploy.yml](.github/workflows/deploy.yml) — на pus
 
 Локально собрать статику: `npm --prefix web run build` → `web/dist`.
 
+Оформление задаётся токенами (палитра, отступы, типошка) в начале `web/src/style.css` — ре-тема правкой блока `:root`.
+
 ## Структура
 
 - `crates/core` — чистая Rust-логика (уровни, база примеров, генерация сессий, статистика). Тестируется без браузера.

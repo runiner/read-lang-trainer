@@ -65,8 +65,11 @@ describe('presentation settings', () => {
       await vi.waitFor(() => expect(q('#exercise-area')).toBeTruthy());
       q('#exercise-area').click(); // последнее открывает статистику
     }
-    await vi.waitFor(() => expect(document.querySelector('.stats')).toBeTruthy());
-    const raw = JSON.parse(localStorage.getItem('rus-trainer.sessions')!);
+    let raw: any[] = [];
+    await vi.waitFor(() => {
+      raw = JSON.parse(localStorage.getItem('rus-trainer.sessions') ?? '[]');
+      expect(raw.length).toBe(1);
+    });
     expect(raw[0].count).toBe(5);
     expect(raw[0].words_per_min).toBeGreaterThan(0);
   });
