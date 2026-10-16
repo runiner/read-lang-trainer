@@ -1,5 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
-  <style>.dog { transform-origin: 60px 95px; }</style>
   <g class="dog" transform="translate(-4 -6) rotate(-8)">
     <!-- тело -->
     <ellipse cx="60" cy="78" rx="26" ry="20" fill="#f6c445"/>

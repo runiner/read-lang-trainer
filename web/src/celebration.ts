@@ -29,8 +29,14 @@ export function startCelebration(root: HTMLElement, opts: CelebrationOptions = {
 
   const canvas = document.createElement('canvas');
   canvas.className = 'confetti';
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  const sizeCanvas = () => {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(window.innerWidth * dpr);
+    canvas.height = Math.round(window.innerHeight * dpr);
+    ctx2dScale = dpr;
+  };
+  let ctx2dScale = 1;
+  sizeCanvas();
   const puppy = document.createElement('img');
   puppy.id = 'puppy';
   puppy.alt = '';
@@ -43,6 +49,7 @@ export function startCelebration(root: HTMLElement, opts: CelebrationOptions = {
 
   let raf = 0;
   let frameTimer: unknown = null;
+  let resizeHandler: (() => void) | null = null;
   let music: CheerMusic | null = null;
   try {
     music = playCheerMusic(durationMs);
@@ -53,24 +60,29 @@ export function startCelebration(root: HTMLElement, opts: CelebrationOptions = {
   if (!reduced) {
     // конфетти
     const ctx2d = canvas.getContext('2d');
+    const W = () => canvas.width / ctx2dScale;
+    const H = () => canvas.height / ctx2dScale;
     const colors = ['#c9531e', '#f6c445', '#2e7d32', '#1565c0', '#ad1457'];
     const bits = Array.from({ length: PARTICLES }, (_, i) => ({
-      x: Math.random() * canvas.width,
-      y: -20 - Math.random() * canvas.height * 0.5,
+      x: Math.random() * W(),
+      y: -20 - Math.random() * H() * 0.5,
       r: 4 + Math.random() * 5,
       vy: 1.5 + Math.random() * 2.5,
       vx: -0.7 + Math.random() * 1.4,
       rot: Math.random() * Math.PI,
       color: colors[i % colors.length],
     }));
+    resizeHandler = () => sizeCanvas();
+    window.addEventListener('resize', resizeHandler);
     const tick = () => {
       if (!ctx2d) return;
-      ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+      ctx2d.setTransform(ctx2dScale, 0, 0, ctx2dScale, 0, 0);
+      ctx2d.clearRect(0, 0, W(), H());
       for (const b of bits) {
         b.y += b.vy;
         b.x += b.vx + Math.sin(b.y / 40);
         b.rot += 0.05;
-        if (b.y > canvas.height + 20) b.y = -20;
+        if (b.y > H() + 20) b.y = -20;
         ctx2d.save();
         ctx2d.translate(b.x, b.y);
         ctx2d.rotate(b.rot);
@@ -98,6 +110,7 @@ export function startCelebration(root: HTMLElement, opts: CelebrationOptions = {
     music?.stop();
     window.removeEventListener('pointerdown', onInput);
     window.removeEventListener('keydown', onInput);
+    if (resizeHandler) window.removeEventListener('resize', resizeHandler);
     overlay.remove();
   };
   const onInput = () => stop();
